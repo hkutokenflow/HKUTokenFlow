@@ -1,0 +1,29 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:title="Home"
+        android:icon="@drawable/home"/>
+
+    <item
+        android:id="@+id/nav_recent_transactions"
+        android:title="Recent Transactions"
+        android:icon="@drawable/transaction" />
+
+    <item
+        android:id="@+id/nav_edit_events"
+        android:title="Edit Events"
+        android:icon="@drawable/event"/>
+
+    <item
+        android:id="@+id/nav_manage_vendor"
+        android:title="Manage Vendor"
+        android:icon="@drawable/vendor" />
+
+
+    <item
+        android:id="@+id/nav_logout"
+        android:title="Logout"
+        android:icon="@drawable/logout" />  <!-- 可选：添加退出图标 -->
+
+
+</menu>

@@ -1,0 +1,21 @@
+<!-- res/layout/fragment_redeem_rewards.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="12dp">
+
+<!--    <TextView-->
+<!--        android:text="Redeem Rewards"-->
+<!--        android:textSize="20sp"-->
+<!--        android:textStyle="bold"-->
+<!--        android:layout_width="wrap_content"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_gravity="center_horizontal"-->
+<!--        android:padding="8dp" />-->
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rewards_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</LinearLayout>

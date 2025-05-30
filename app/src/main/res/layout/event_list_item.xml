@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:background="@android:color/white"
+    android:gravity="center_vertical">
+
+    <!-- Event 名字 -->
+    <TextView
+        android:id="@+id/tv_event_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:text="Event1"
+        android:textSize="16sp"
+        android:textColor="#333333" />
+
+    <!-- Token 数 -->
+    <TextView
+        android:id="@+id/tv_token_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="25 tokens"
+        android:textColor="#666666"
+        android:layout_marginEnd="12dp"
+        android:textSize="14sp"/>
+
+
+    <ImageButton
+        android:id="@+id/btn_view"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="0dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="View"
+        android:src="@drawable/search"
+        android:tint="#689f38" />
+
+    <!-- 编辑图标按钮 -->
+    <ImageButton
+        android:id="@+id/btn_edit"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="0dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/edit"
+        android:contentDescription="Edit"
+        android:tint="#ffaf0f" />
+
+    <!-- 删除图标按钮 -->
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/delete"
+        android:contentDescription="Delete"
+        android:tint="#F44336" />
+
+</LinearLayout>

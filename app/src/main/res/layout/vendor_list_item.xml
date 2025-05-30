@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:id="@+id/tv_vendor_name"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="wrap_content"
+        android:text="Vendor Name"
+        android:paddingLeft="10dp"
+        android:textSize="18sp"
+        android:textColor="#333" />
+
+    <ImageButton
+        android:id="@+id/btn_view"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="0dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="View"
+        android:src="@drawable/search"
+        android:tint="#689f38" />
+
+    <!-- 编辑图标按钮 -->
+    <ImageButton
+        android:id="@+id/btn_edit"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="0dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/edit"
+        android:contentDescription="Edit"
+        android:tint="#ffaf0f" />
+
+    <!-- 删除图标按钮 -->
+    <ImageButton
+        android:id="@+id/btn_delete"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Delete"
+        android:src="@drawable/delete"
+        android:tint="#F44336" />
+
+</LinearLayout>

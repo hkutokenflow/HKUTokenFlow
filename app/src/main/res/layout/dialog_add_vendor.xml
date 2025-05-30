@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Vendor"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="12dp" />
+
+    <EditText
+        android:id="@+id/et_vendor_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Vendor name"
+        android:inputType="text"
+        android:padding="12dp" />
+
+    <LinearLayout
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/btn_cancel"
+            android:text="Cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="64dp"
+            android:minHeight="36dp"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:textSize="14sp"
+            android:backgroundTint="#BDBDBD"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btn_confirm"
+            android:text="Confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="64dp"
+            android:minHeight="36dp"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:layout_marginStart="8dp"
+            android:textSize="14sp"
+            android:backgroundTint="#2196F3"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
+</LinearLayout>

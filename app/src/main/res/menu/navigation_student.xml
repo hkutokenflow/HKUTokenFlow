@@ -1,0 +1,32 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_home"
+        android:title="Home"
+        android:icon="@drawable/home"/>
+    <item
+        android:id="@+id/nav_event_checkin"
+        android:title="Events Check-in"
+        android:icon="@drawable/event"/>
+
+    <item
+        android:id="@+id/nav_redeem_rewards"
+        android:title="Redeem Rewards"
+        android:icon="@drawable/transaction" />
+
+    <item
+        android:id="@+id/nav_student_rewards"
+        android:title="Your Rewards"
+        android:icon="@drawable/vendor" />
+
+    <item
+        android:id="@+id/nav_hkuTokenflow"
+        android:title="About HKU TokenFlow"
+        android:icon="@drawable/token" />
+
+
+    <item
+        android:id="@+id/nav_logout"
+        android:title="Logout"
+        android:icon="@drawable/logout" />  <!-- 可选：添加退出图标 -->
+
+</menu>

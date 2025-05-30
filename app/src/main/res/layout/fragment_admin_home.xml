@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/admin_home_scroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAFAFA"
+    android:padding="16dp">
+
+    <!-- 主容器 LinearLayout，用于嵌套所有内容 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- 顶部两个统计卡片 -->
+        <LinearLayout
+            android:id="@+id/statistics_container"
+            android:layout_marginTop="20px"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:weightSum="2"
+            android:layout_marginBottom="16dp">
+
+            <!-- 卡片1 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                card_view:cardCornerRadius="12dp"
+                card_view:cardElevation="2dp"
+                card_view:cardBackgroundColor="@android:color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/total_tokens_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Tokens Mined"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/total_tokens_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="1,234"
+                        android:textColor="#00BFFF"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- 卡片2 -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                card_view:cardCornerRadius="12dp"
+                card_view:cardElevation="2dp"
+                card_view:cardBackgroundColor="@android:color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:padding="12dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/total_transactions_label"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Transactions"
+                        android:textStyle="bold"
+                        android:textSize="16sp" />
+
+                    <TextView
+                        android:id="@+id/total_transactions_value"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="567"
+                        android:textSize="20sp"
+                        android:textColor="#00BFFF"
+                        android:textStyle="bold"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+
+        <!-- 中间图表部分 -->
+        <LinearLayout
+            android:id="@+id/chart_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="24dp">
+
+            <!-- 标题 + 切换按钮 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <!-- Title on the left -->
+                <TextView
+                    android:id="@+id/transaction_summary_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Transaction Summary"
+                    android:textStyle="bold"
+                    android:textSize="20sp"
+                    android:layout_weight="1"
+                    android:gravity="left" />
+
+                <!-- Spinner on the right -->
+                <Spinner
+                    android:id="@+id/time_range_spinner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:entries="@array/time_ranges"
+                    android:spinnerMode="dropdown"
+                    android:layout_weight="1"
+                android:gravity="right" />
+            </LinearLayout>
+
+
+            <!-- 图表1 -->
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/tokens_mined_chart"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- 图表2 -->
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/transactions_chart"
+                android:layout_width="match_parent"
+                android:layout_height="200dp" />
+        </LinearLayout>
+
+
+        <!-- Recent Transactions Section -->
+<!--        <LinearLayout-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:orientation="vertical">-->
+
+<!--            &lt;!&ndash; Search Box (at the top right of the table) &ndash;&gt;-->
+<!--            <LinearLayout-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:gravity="end"-->
+<!--                android:layout_marginBottom="12dp">-->
+
+<!--                <EditText-->
+<!--                    android:id="@+id/transaction_search"-->
+<!--                    android:layout_width="250dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:hint="Search Transactions"-->
+<!--                    android:padding="8dp"-->
+<!--                    android:background="@android:drawable/edit_text"-->
+<!--                    android:layout_gravity="end" />-->
+
+<!--            </LinearLayout>-->
+
+<!--            &lt;!&ndash; Table for Recent Transactions &ndash;&gt;-->
+<!--            <TableLayout-->
+<!--                android:id="@+id/recent_transactions_table"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:stretchColumns="1"-->
+<!--                android:layout_marginBottom="16dp"-->
+<!--                android:divider="@android:color/darker_gray"-->
+<!--                android:showDividers="middle">-->
+
+<!--                &lt;!&ndash; Header Row &ndash;&gt;-->
+<!--                <TableRow-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:background="#D3D3D3">-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="Date"-->
+<!--                        android:textStyle="bold"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="Voucher"-->
+<!--                        android:textStyle="bold"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="User"-->
+<!--                        android:textStyle="bold"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="Balance"-->
+<!--                        android:textStyle="bold"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+<!--                </TableRow>-->
+
+<!--                &lt;!&ndash; Example Data Rows &ndash;&gt;-->
+<!--                <TableRow-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content">-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="2025-04-25"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="V001"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="User123"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="$500.00"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+<!--                </TableRow>-->
+
+<!--                <TableRow-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content">-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="2025-04-26"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="V002"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="User456"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+
+<!--                    <TextView-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="$200.00"-->
+<!--                        android:paddingStart="8dp"-->
+<!--                        android:paddingEnd="8dp"-->
+<!--                        android:paddingTop="8dp"-->
+<!--                        android:paddingBottom="8dp"-->
+<!--                        android:gravity="center" />-->
+<!--                </TableRow>-->
+
+<!--                &lt;!&ndash; Add more rows as needed &ndash;&gt;-->
+
+<!--            </TableLayout>-->
+
+<!--        </LinearLayout>-->
+
+
+    </LinearLayout>
+</ScrollView>
