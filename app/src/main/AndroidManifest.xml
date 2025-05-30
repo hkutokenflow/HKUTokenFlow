@@ -23,10 +23,15 @@
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config">
         <activity
+            android:name=".Login.RegisterAgentActivity"
+            android:exported="false" />
+        <activity
+            android:name=".Login.VendorRegisterActivity"
+            android:exported="false" />
+        <activity
             android:name=".Student.EventCheckin.CustomScannerActivity"
             android:screenOrientation="portrait"
             android:theme="@style/zxing_CaptureTheme" />
-
         <activity
             android:name=".Vendor.VendorActivity"
             android:exported="false"
@@ -58,7 +63,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
 
 </manifest>

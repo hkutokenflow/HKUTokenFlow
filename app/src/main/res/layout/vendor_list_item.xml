@@ -6,15 +6,46 @@
     android:padding="12dp"
     android:gravity="center_vertical">
 
-    <TextView
-        android:id="@+id/tv_vendor_name"
+    <LinearLayout
         android:layout_width="0dp"
-        android:layout_weight="1"
         android:layout_height="wrap_content"
-        android:text="Vendor Name"
-        android:paddingLeft="10dp"
-        android:textSize="18sp"
-        android:textColor="#333" />
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_vendor_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Vendor Name"
+            android:paddingLeft="10dp"
+            android:textSize="18sp"
+            android:textColor="#333" />
+
+        <TextView
+            android:id="@+id/tv_approval_status"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:padding="4dp"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:alpha="0.8"
+            android:background="@drawable/status_tag_background"
+            android:text="Pending" />
+
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btn_action"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginEnd="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Action"
+        android:src="@drawable/baseline_approval_24"
+        android:tint="#2196F3"
+        android:visibility="gone" />
 
     <ImageButton
         android:id="@+id/btn_view"
@@ -25,26 +56,5 @@
         android:contentDescription="View"
         android:src="@drawable/search"
         android:tint="#689f38" />
-
-    <!-- 编辑图标按钮 -->
-    <ImageButton
-        android:id="@+id/btn_edit"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginEnd="0dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/edit"
-        android:contentDescription="Edit"
-        android:tint="#ffaf0f" />
-
-    <!-- 删除图标按钮 -->
-    <ImageButton
-        android:id="@+id/btn_delete"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Delete"
-        android:src="@drawable/delete"
-        android:tint="#F44336" />
 
 </LinearLayout>

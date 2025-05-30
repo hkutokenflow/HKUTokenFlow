@@ -7,37 +7,16 @@
     android:padding="16dp"
     android:background="#FAFAFA">
 
-    <!-- 顶部标题与按钮 -->
-    <LinearLayout
+    <!-- 顶部标题 -->
+    <TextView
+        android:id="@+id/title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="8dp">
-
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Vendor List"
-            android:textStyle="bold"
-            android:textSize="20sp"
-            android:textColor="#333333" />
-
-        <Button
-            android:id="@+id/btn_add"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:text="+ Add Vendor"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#2196F3"
-            android:textSize="15sp"
-            android:layout_marginStart="8dp" />
-
-
-    </LinearLayout>
-
+        android:text="Vendor Approval List"
+        android:textStyle="bold"
+        android:textSize="20sp"
+        android:textColor="#333333"
+        android:layout_marginBottom="16dp" />
 
     <ListView
         android:id="@+id/vendor_list_view"

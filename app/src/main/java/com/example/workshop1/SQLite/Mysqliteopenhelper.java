@@ -14,7 +14,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     private static final String DBNAME = "Mydb";
 
     public Mysqliteopenhelper(@Nullable Context context) {
-        super(context, DBNAME, null, 1);
+        super(context, DBNAME, null, 9);
     }
 
     @Override
@@ -144,8 +144,6 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     // get user id from username and password
     public int getUserId(String username, String pwd) {
         SQLiteDatabase db1 = getWritableDatabase();
-        Cursor id = db1.query("Users", new String[] { "_id" }, "username = ? AND password = ?",
-                new String[] { username, pwd }, null, null, null);
         if (id != null && id.moveToFirst()) {
             return id.getInt(0);
         } else {
@@ -215,6 +213,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         contentValues.put("description", event.getDescription());
         contentValues.put("reward", event.getReward());
         long resA = db.insert("EventsA", null, contentValues);
+
         if (resA == -1) {
             Log.e("SQL addEvent", "Failed to insert into RewardsA");
         } else {
@@ -418,6 +417,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
 
     // Add transaction
     public void addTransaction(Transaction trans) {
+
         SQLiteDatabase db = this.getWritableDatabase();
         SQLiteDatabase db1 = this.getReadableDatabase();
 
@@ -465,6 +465,12 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     public Cursor getAllTrans() {
         SQLiteDatabase db1 = getWritableDatabase();
         return db1.query("Transactions", null, null, null, null, null, "datetime DESC");
+    }
+
+    // ------------------ STUDENTREWARDS ------------------
+    // Add student-reward record (redeem reward)
+    public void addStudentReward(StudentReward sr) {
+        SQLiteDatabase db = getWritableDatabase();
     }
 
     // ------------------ STUDENTREWARDS ------------------
