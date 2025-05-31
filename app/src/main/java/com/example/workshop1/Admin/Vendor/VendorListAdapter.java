@@ -61,7 +61,28 @@ public class VendorListAdapter extends ArrayAdapter<VendorItem> {
             // Create and show a dialog to display the username and password
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
             builder.setTitle(name);
-            builder.setMessage("Username: " + username + "\nPassword: " + password);
+
+            // 创建一个自定义的视图来显示密码
+            View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_view_vendor, null);
+            TextView tvUsername = dialogView.findViewById(R.id.tv_username);
+            TextView tvPassword = dialogView.findViewById(R.id.tv_password);
+            Button btnShowEncrypted = dialogView.findViewById(R.id.btn_show_encrypted);
+
+            tvUsername.setText("Username: " + username);
+            tvPassword.setText("Password: " + password);
+
+            builder.setView(dialogView);
+
+            // 添加显示加密密码的按钮
+            btnShowEncrypted.setOnClickListener(view -> {
+                String decryptedPassword = com.example.workshop1.Utils.PasswordEncryption.decrypt(password);
+                if (decryptedPassword != null) {
+                    tvPassword.setText("Password (Decrypted): " + decryptedPassword);
+                } else {
+                    tvPassword.setText("Password (Encrypted): " + password);
+                }
+            });
+
             builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
             builder.show();
         });

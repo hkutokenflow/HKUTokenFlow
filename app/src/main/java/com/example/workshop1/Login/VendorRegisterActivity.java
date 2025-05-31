@@ -15,12 +15,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.VendorApproval;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 import java.util.Random;
 
 public class VendorRegisterActivity extends AppCompatActivity {
 
-    private EditText et_name, et_pwd, et_equal, et_verifyCode;
+    private EditText et_username, et_name, et_pwd, et_equal, et_verifyCode;
     private ImageView iv_eye2, iv_eye3, iv_showCode;
     private CheckBox cb_accept;
     private Mysqliteopenhelper mysqliteopenhelper;
@@ -31,8 +32,9 @@ public class VendorRegisterActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_vendor_register);
-        
-        et_name = findViewById(R.id.et_register_username);
+
+        et_username = findViewById(R.id.et_register_username);
+        et_name = findViewById(R.id.et_register_name);
         et_pwd = findViewById(R.id.et_register_password);
         et_equal = findViewById(R.id.et_equal_password);
         et_verifyCode = findViewById(R.id.et_verify_code);
@@ -55,31 +57,19 @@ public class VendorRegisterActivity extends AppCompatActivity {
     }
 
     private String generateUniqueUsername(String name) {
-        String nameLower = name.toLowerCase();
-        String[] nameParts = nameLower.split(" ");
-
-        // If the vendor name has 1-2 words, generate username without spaces
-        if (nameParts.length <= 2) {
-            String namept = nameLower.replaceAll("\\s", "");  // Remove all spaces from the name
-            int randomNumber = (int) (Math.random() * 10000);
-            return namept + randomNumber;
-        } else { // If the vendor name has more than 2 words, generate username with initials
-            String namept = "";
-            for (String part : nameParts) {
-                if (!part.isEmpty()) {
-                    namept += part.charAt(0);
-                }
-            }
-            int randomNumber = (int) (Math.random() * 10000);
-            return namept + randomNumber;
-        }
+        // 将name转换为小写并移除空格
+        String base = name.toLowerCase().replaceAll("\\s+", "");
+        // 生成3位随机数
+        Random random = new Random();
+        int randomNum = random.nextInt(900) + 100; // 100-999
+        return base + randomNum;
     }
 
     private String generateRandomPassword() {
         String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
         StringBuilder password = new StringBuilder();
         Random random = new Random();
-        
+
         // 确保至少包含一个大写字母
         password.append(chars.substring(0, 26).charAt(random.nextInt(26)));
         // 确保至少包含一个小写字母
@@ -88,12 +78,12 @@ public class VendorRegisterActivity extends AppCompatActivity {
         password.append(chars.substring(52, 62).charAt(random.nextInt(10)));
         // 确保至少包含一个特殊字符
         password.append(chars.substring(62).charAt(random.nextInt(8)));
-        
+
         // 添加更多随机字符使密码长度达到8位
         for (int i = 4; i < 8; i++) {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
-        
+
         // 打乱密码字符顺序
         char[] passwordArray = password.toString().toCharArray();
         for (int i = passwordArray.length - 1; i > 0; i--) {
@@ -102,18 +92,24 @@ public class VendorRegisterActivity extends AppCompatActivity {
             passwordArray[i] = passwordArray[j];
             passwordArray[j] = temp;
         }
-        
+
         return new String(passwordArray);
     }
 
     public void register_newuser(View view) {
+        String username = et_username.getText().toString().trim();
         String name = et_name.getText().toString().trim();
         String pwd = et_pwd.getText().toString();
         String equal = et_equal.getText().toString();
         String inputCode = et_verifyCode.getText().toString().toLowerCase();
 
+        if (username.isEmpty()) {
+            Toast.makeText(this, "Please enter your username", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (name.isEmpty()) {
-            Toast.makeText(this, "Please enter your name", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please enter your store name", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -136,13 +132,23 @@ public class VendorRegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // 生成用户名，使用用户输入的密码
-        String username = generateUniqueUsername(name);
+        // 检查用户名是否已存在
+        if (mysqliteopenhelper.checkUserExists(username)) {
+            Toast.makeText(this, "Username already exists", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // 创建vendor审批申请，使用用户输入的密码
-        VendorApproval vendorApproval = new VendorApproval(username, pwd, name);
+        // 加密密码
+        String encryptedPassword = PasswordEncryption.encrypt(pwd);
+        if (encryptedPassword == null) {
+            Toast.makeText(this, "Password encryption failed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 创建vendor审批申请，使用加密后的密码
+        VendorApproval vendorApproval = new VendorApproval(username, encryptedPassword, name);
         long res = mysqliteopenhelper.addVendorApproval(vendorApproval);
-        
+
         if (res != -1) {
             Toast.makeText(this, "Registration submitted successfully! Please wait for admin approval.", Toast.LENGTH_LONG).show();
             Intent intent = new Intent(this, LoginActivity.class);
@@ -200,4 +206,4 @@ public class VendorRegisterActivity extends AppCompatActivity {
             Visiable2=0;
         }
     }
-} 
+}

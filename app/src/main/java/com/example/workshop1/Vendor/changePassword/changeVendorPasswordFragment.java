@@ -19,6 +19,7 @@ import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.Login.EmailSender;
 import com.example.workshop1.SQLite.User;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 import java.util.Random;
 
@@ -75,13 +76,19 @@ public class changeVendorPasswordFragment extends Fragment {
         String pwd = et_pwd.getText().toString();
         String equal = et_equal.getText().toString();
 
+        // 加密新密码
+        String encryptedPassword = PasswordEncryption.encrypt(pwd);
+        if (encryptedPassword == null) {
+            Toast.makeText(requireContext(), "Password encryption failed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         //------------------------------------SQL---------------------------------------
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
         mysqliteopenhelper = new Mysqliteopenhelper(requireContext());
-        mysqliteopenhelper.editVendorPwd(thisUser.getUsername(), pwd);
+        mysqliteopenhelper.editVendorPwd(thisUser.getUsername(), encryptedPassword);
         //-----------------------------Update Password here---------------------------------------
 
-        // TODO: update password in database
         Toast.makeText(requireContext(), "Password changed successfully!", Toast.LENGTH_SHORT).show();
     }
 

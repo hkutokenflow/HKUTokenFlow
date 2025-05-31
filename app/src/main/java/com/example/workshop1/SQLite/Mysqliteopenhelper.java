@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 import androidx.annotation.Nullable;
 
@@ -61,8 +62,13 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
                 "name varchar(255), approved INTEGER DEFAULT 0)";
         db.execSQL(createVendorApproval);
 
-        // Create admin account
-        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', 'admin123', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
+        // Create admin account with encrypted password
+        String adminPassword = PasswordEncryption.encrypt("admin123");
+        if (adminPassword == null) {
+            Log.e("SQL", "Failed to encrypt admin password");
+            adminPassword = ""; // 如果加密失败，使用空密码，但这种情况不应该发生
+        }
+        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', '" + adminPassword + "', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
         db.execSQL(addAdmin);
 
         // accounts for testing
@@ -563,7 +569,12 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         String deleteAllVendorApproval = "DELETE FROM VendorApproval";
         db.execSQL(deleteAllVendorApproval);
 
-        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', 'admin123', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
+        String adminPassword = PasswordEncryption.encrypt("admin123");
+        if (adminPassword == null) {
+            Log.e("SQL", "Failed to encrypt admin password");
+            adminPassword = ""; // 如果加密失败，使用空密码，但这种情况不应该发生
+        }
+        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', '" + adminPassword + "', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
         db.execSQL(addAdmin);
     }
 

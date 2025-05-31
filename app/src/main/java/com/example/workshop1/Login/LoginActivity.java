@@ -26,6 +26,7 @@ import com.example.workshop1.SQLite.User;
 import com.example.workshop1.Student.StudentActivity;
 import com.example.workshop1.Vendor.VendorActivity;
 import com.example.workshop1.Ethereum.BlockchainConfig;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 import org.web3j.crypto.CipherException;
 import org.web3j.crypto.Credentials;
@@ -132,12 +133,19 @@ public class LoginActivity extends AppCompatActivity {
             // 验证码正确之后再尝试登陆
             User login_success = mysqliteopenhelper.login(account, password);
             if (login_success != null) {
+                // 验证密码
+                if (!PasswordEncryption.verifyPassword(password, login_success.getPassword())) {
+                    Toast.makeText(this, "Incorrect password", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 // 读取数据
                 editor = pref.edit();
                 if (remeberPass.isChecked()) {
                     editor.putBoolean("remember_password", true);
                     editor.putString("account", account);
-                    editor.putString("password", password);
+                    // editor.putString("password",password);
+                    editor.putString("password", "");  // 不要存储明文密码
                 } else {
                     editor.putBoolean("remember_password", false);
                     editor.clear();
@@ -163,7 +171,7 @@ public class LoginActivity extends AppCompatActivity {
                         intent = new Intent(this, AdminActivity.class); // Jump to AdminActivity
                         break;
                     default:
-                        Toast.makeText(this, "user type invalid", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "User type invalid", Toast.LENGTH_SHORT).show();
                         return;
                 }
 
@@ -171,7 +179,7 @@ public class LoginActivity extends AppCompatActivity {
                 startActivity(intent); // 登陆成功，跳转到对应的 Activity
 
             } else {
-                Toast.makeText(this, "Incorrect email or password.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Incorrect email or password", Toast.LENGTH_SHORT).show();
             }
         } else {
             Toast.makeText(this, "Verification code error!", Toast.LENGTH_SHORT).show();

@@ -55,7 +55,21 @@
             android:layout_marginBottom="20dp"
             android:drawableLeft="@drawable/baseline_person_24"
             android:drawablePadding="15dp"
-            android:hint="Please input name of vendor"
+            android:hint="Please input your username"
+            android:inputType="text"
+            android:maxLines="1"
+            android:paddingLeft="18dp"
+            android:textColor="@color/black"
+            android:textSize="18sp" />
+
+        <EditText
+            android:id="@+id/et_register_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:drawableLeft="@drawable/baseline_store_24"
+            android:drawablePadding="15dp"
+            android:hint="Please input your store name"
             android:inputType="text"
             android:maxLines="1"
             android:paddingLeft="18dp"
@@ -170,4 +184,4 @@
             android:textSize="18sp" />
 
     </LinearLayout>
-</LinearLayout> 
+</LinearLayout>

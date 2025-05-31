@@ -49,7 +49,7 @@ public class VendorApprovalItem {
         switch (approved) {
             case 1:
                 return "Approved";
-            case 2:
+            case -1:
                 return "Refused";
             default:
                 return "Pending";
@@ -59,11 +59,11 @@ public class VendorApprovalItem {
     public int getStatusColor() {
         switch (approved) {
             case 1:
-                return 0xFF4CAF50; // Green for approved
-            case 2:
-                return 0xFF9E9E9E; // Grey for refused
+                return 0xC04CAF50; // Green for approved (25% transparent)
+            case -1:
+                return 0xC0F44336; // Red for refused (25% transparent)
             default:
-                return 0xFFFFA500; // Orange for pending
+                return 0xC0FFA500; // Orange for pending (25% transparent)
         }
     }
-} 
+}

@@ -20,6 +20,7 @@ import com.example.workshop1.Ethereum.WalletGenerator;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
@@ -125,7 +126,6 @@ public class RegisterActivity extends AppCompatActivity {
 
         // 先检查密码格式是否合规
         if (!isPasswordValid(pwd)) {
-            // Toast.makeText(this, "Password invalid!", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -156,8 +156,14 @@ public class RegisterActivity extends AppCompatActivity {
 
                     verifyWalletCreation(walletAddress);
 
-                    // Insert into database
-                    User user = new User(username, pwd, "", "student", 0, walletAddress);
+                    // Insert user into database
+                    // 加密密码
+                    String encryptedPassword = PasswordEncryption.encrypt(pwd);
+                    if (encryptedPassword == null) {
+                        Toast.makeText(this, "Password encryption failed", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    User user = new User(username, encryptedPassword, "", "student", 0, walletAddress);
                     long res = mysqliteopenhelper.addUser(user);
                     if (res != -1) {
                         ethereumManager.assignRole(walletAddress, "STUDENT");

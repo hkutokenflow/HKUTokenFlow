@@ -30,28 +30,27 @@
             android:padding="4dp"
             android:textSize="12sp"
             android:textColor="#FFFFFF"
-            android:alpha="0.8"
             android:background="@drawable/status_tag_background"
             android:text="Pending" />
 
     </LinearLayout>
 
+    <!-- Check button (for pending approval) -->
     <ImageButton
         android:id="@+id/btn_action"
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_marginEnd="8dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Action"
+        android:contentDescription="Check"
         android:src="@drawable/baseline_approval_24"
-        android:tint="#2196F3"
-        android:visibility="gone" />
+        android:tint="#2196F3" />
 
+    <!-- Search button (always visible) -->
     <ImageButton
         android:id="@+id/btn_view"
         android:layout_width="30dp"
         android:layout_height="30dp"
-        android:layout_marginEnd="0dp"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:contentDescription="View"
         android:src="@drawable/search"

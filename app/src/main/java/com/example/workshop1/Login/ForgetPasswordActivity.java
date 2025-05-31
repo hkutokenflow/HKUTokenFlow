@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
+import com.example.workshop1.Utils.PasswordEncryption;
 
 public class ForgetPasswordActivity extends AppCompatActivity {
 
@@ -47,27 +48,35 @@ public class ForgetPasswordActivity extends AppCompatActivity {
     //--------------------------------------change_password--------------------------------------
 
     public void change_password(View view){
-        String name=et_forget.getText().toString();
-        String pwd=et_pwd.getText().toString();
-        String equal=et_equal.getText().toString();
+        String name = et_forget.getText().toString();
+        String pwd = et_pwd.getText().toString();
+        String equal = et_equal.getText().toString();
 
-        if(pwd.equals(equal)&&cb_accept.isChecked()){//两次密码相同而且已经选中了同意政策
-            User user = new User(name,pwd, "", "");
-            long res=mysqliteopenhelper.addUser(user);
-            if(res!=-1){
-                Toast.makeText(this,"Register Successfully!",Toast.LENGTH_SHORT).show();
-                Intent intent=new Intent(this,LoginActivity.class);
-                startActivity(intent);
-            }
-            else{
-                Toast.makeText(this,"Register Failed!",Toast.LENGTH_SHORT).show();
-            }
+        if (!pwd.equals(equal)) {
+            Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show();
+            return;
         }
-        else if(!pwd.equals(equal)){
-            Toast.makeText(this,"Two time passwords different",Toast.LENGTH_SHORT).show();
+
+        if (!cb_accept.isChecked()) {
+            Toast.makeText(this, "Please agree to the HKU Privacy Policy", Toast.LENGTH_SHORT).show();
+            return;
         }
-        else if(!cb_accept.isChecked()){
-            Toast.makeText(this,"Please agree to the APP Privacy Policy！",Toast.LENGTH_SHORT).show();
+
+        // 加密密码
+        String encryptedPassword = PasswordEncryption.encrypt(pwd);
+        if (encryptedPassword == null) {
+            Toast.makeText(this, "Password encryption failed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        User user = new User(name, encryptedPassword, "", "");
+        long res = mysqliteopenhelper.addUser(user);
+        if (res != -1) {
+            Toast.makeText(this, "Password changed successfully!", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+        } else {
+            Toast.makeText(this, "Password change failed", Toast.LENGTH_SHORT).show();
         }
     }
 
