@@ -9,21 +9,33 @@ public class User implements Serializable {
     private String name;
     private String type;
     private int balance;
+    private String wallet;
 
-    public User(String n,String p, String name, String type){
-        this.username = n;
-        this.password = p;
+    public User(String username, String password, String name, String type) {
+        this.username = username;
+        this.password = password;
         this.name = name;
         this.type = type;
         this.balance = 0;
+        this.wallet = null;
     }
 
-    public User(String n, String p, String name, String type, int balance) {
+    public User(String username, String password, String name, String type, String walletAddress) {
+        this.username = username;
+        this.password = password;
+        this.name = name;
+        this.type = type;
+        this.balance = 0;
+        this.wallet = walletAddress;
+    }
+
+    public User(String n, String p, String name, String type, int balance, String walletAddress) {
         this.username = n;
         this.password = p;
         this.name = name;
         this.type = type;
         this.balance = balance;
+        this.wallet = walletAddress;
     }
 
 
@@ -66,4 +78,8 @@ public class User implements Serializable {
     public void setBalance(int balance) {
         this.balance = balance;
     }
+
+    public String getWallet() { return wallet; }
+
+    public void setWallet(String walletAddress) { this.wallet = walletAddress; }
 }

@@ -239,28 +239,4 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-    // 监听注册按钮
-    public void jumptoRegister(View view) {
-        Intent intent = new Intent(this, RegisterAgentActivity.class);
-        startActivity(intent);
-    }
-
-    // 监听图片验证码
-    public void changenumber(View view) {
-        iv_showCode.setImageBitmap(Code.getInstance().createBitmap());
-        realCode = Code.getInstance().getCode().toLowerCase();// 不区分大小写哈
-    }
-
-    // 监听密码是否可见
-    public void Isvisiable(View view) {
-        if (Visiable == 0) {
-            et_password.setTransformationMethod(HideReturnsTransformationMethod.getInstance());// 可见
-            iv_eye.setImageResource(R.drawable.baseline_visibility_24);
-            Visiable = 1;
-        } else {
-            et_password.setTransformationMethod(PasswordTransformationMethod.getInstance());// 不可见
-            iv_eye.setImageResource(R.drawable.baseline_visibility_off_24);
-            Visiable = 0;
-        }
-    }
 }

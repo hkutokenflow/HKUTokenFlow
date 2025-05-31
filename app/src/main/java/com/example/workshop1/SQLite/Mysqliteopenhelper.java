@@ -21,7 +21,8 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         String createUsers = "CREATE TABLE Users (_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "username varchar(255), password varchar(255)," +
-                "name varchar(255), type varchar(16), balance INTEGER)";
+                "name varchar(255), type varchar(16), balance INTEGER," +
+                "varchar)";
         db.execSQL(createUsers);
 
         String createTransactions = "CREATE TABLE Transactions (_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -61,7 +62,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         db.execSQL(createVendorApproval);
 
         // Create admin account
-        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', 'admin123','HKU TokenFlow Admin', 'admin', 0)";
+        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', 'admin123', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
         db.execSQL(addAdmin);
 
         // accounts for testing
@@ -105,6 +106,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         contentValues.put("name", user.getName());
         contentValues.put("type", user.getType());
         contentValues.put("balance", user.getBalance());
+        contentValues.put("wallet_address", user.getWalletAddress());
 
         return db.insert("Users", null, contentValues);
     }
@@ -144,6 +146,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     // get user id from username and password
     public int getUserId(String username, String pwd) {
         SQLiteDatabase db1 = getWritableDatabase();
+        Cursor id =  db1.query("Users", new String[]{"_id"}, "username = ? AND password = ?", new String[] {username, pwd}, null, null, null);
         if (id != null && id.moveToFirst()) {
             return id.getInt(0);
         } else {
@@ -465,12 +468,6 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     public Cursor getAllTrans() {
         SQLiteDatabase db1 = getWritableDatabase();
         return db1.query("Transactions", null, null, null, null, null, "datetime DESC");
-    }
-
-    // ------------------ STUDENTREWARDS ------------------
-    // Add student-reward record (redeem reward)
-    public void addStudentReward(StudentReward sr) {
-        SQLiteDatabase db = getWritableDatabase();
     }
 
     // ------------------ STUDENTREWARDS ------------------

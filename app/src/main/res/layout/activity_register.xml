@@ -128,7 +128,7 @@
                 android:inputType="textPassword"
                 android:drawableLeft="@drawable/baseline_lock_25"
                 android:drawablePadding="15dp"
-                android:hint="Please input the password"
+                android:hint="Please input your password"
                 android:maxLines="1"
                 android:paddingLeft="18dp"
                 android:textColor="@color/black"

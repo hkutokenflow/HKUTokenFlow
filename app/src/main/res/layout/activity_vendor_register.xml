@@ -55,7 +55,7 @@
             android:layout_marginBottom="20dp"
             android:drawableLeft="@drawable/baseline_person_24"
             android:drawablePadding="15dp"
-            android:hint="Please input your name"
+            android:hint="Please input name of vendor"
             android:inputType="text"
             android:maxLines="1"
             android:paddingLeft="18dp"

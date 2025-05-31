@@ -55,12 +55,24 @@ public class VendorRegisterActivity extends AppCompatActivity {
     }
 
     private String generateUniqueUsername(String name) {
-        // 将name转换为小写并移除空格
-        String base = name.toLowerCase().replaceAll("\\s+", "");
-        // 生成3位随机数
-        Random random = new Random();
-        int randomNum = random.nextInt(900) + 100; // 100-999
-        return base + randomNum;
+        String nameLower = name.toLowerCase();
+        String[] nameParts = nameLower.split(" ");
+
+        // If the vendor name has 1-2 words, generate username without spaces
+        if (nameParts.length <= 2) {
+            String namept = nameLower.replaceAll("\\s", "");  // Remove all spaces from the name
+            int randomNumber = (int) (Math.random() * 10000);
+            return namept + randomNumber;
+        } else { // If the vendor name has more than 2 words, generate username with initials
+            String namept = "";
+            for (String part : nameParts) {
+                if (!part.isEmpty()) {
+                    namept += part.charAt(0);
+                }
+            }
+            int randomNumber = (int) (Math.random() * 10000);
+            return namept + randomNumber;
+        }
     }
 
     private String generateRandomPassword() {
