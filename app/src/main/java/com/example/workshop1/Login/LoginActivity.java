@@ -69,41 +69,6 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // test blockchain connection
-        new Thread(() -> {
-            Web3j web3 = Web3j.build(new HttpService(BLOCKCHAIN_URL));
-            try {
-                ethereumManager = new EthereumManager(this);
-                ethereumManager.checkTokenDecimals();
-
-                BigInteger blockNumber = web3.ethBlockNumber().send().getBlockNumber();
-                Log.d("Blockchain", "Latest Ethereum block number: " + blockNumber);
-
-                // get account ETH balance
-                EthGetBalance ethGetBalance = web3.ethGetBalance("0xa3b630aa86b171da5c767fcbd16e76f1082ed9f4",
-                        DefaultBlockParameterName.LATEST).sendAsync().get();
-                BigInteger wei = ethGetBalance.getBalance();
-                java.math.BigDecimal eth = Convert.fromWei(String.valueOf(wei), Convert.Unit.ETHER);
-                Log.d("Blockchain", "ETH balance: " + eth);
-
-                // test smart contract and mining
-                BigInteger balance = ethereumManager.getBalance("0xa3b630aa86b171da5c767fcbd16e76f1082ed9f4");
-                Log.d("Ethereum Manager", "Original token balance: " + balance);
-                BigInteger mint = BigInteger.valueOf(1);
-                Log.d("Ethereum Manager", "To mint: " + mint);
-
-                Log.d("Ethereum Manager", "Starting mining for transaction");
-                ethereumManager.mintTokens("0xa3b630aa86b171da5c767fcbd16e76f1082ed9f4", mint);
-                BigInteger newBalance = ethereumManager.getBalance("0xa3b630aa86b171da5c767fcbd16e76f1082ed9f4");
-                Log.d("Ethereum Manager", "New token balance: " + newBalance);
-
-            } catch (IOException e) {
-                Log.e("Blockchain Error", "Failed to connect", e);
-            } catch (ExecutionException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }).start();
-
         setContentView(R.layout.activity_login);
 
         mysqliteopenhelper = new Mysqliteopenhelper(this);

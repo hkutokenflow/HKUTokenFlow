@@ -158,6 +158,8 @@ public class RegisterActivity extends AppCompatActivity {
                     User user = new User(username, pwd, "", "student", 0, walletAddress);
                     long res = mysqliteopenhelper.addUser(user);
                     if (res != -1) {
+                        ethereumManager.assignRole(walletAddress, "STUDENT");
+                        
                         Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
                         Log.d("Registration", "Student registered with wallet: " + walletAddress);
                         verifyWalletCreation(walletAddress);
@@ -175,7 +177,6 @@ public class RegisterActivity extends AppCompatActivity {
                 });
             }
         }).start();
-
     }
 
     public void verifyWalletCreation(String walletAddress) {
