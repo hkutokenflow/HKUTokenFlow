@@ -533,6 +533,8 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     // ------------------ Delete all for testing (except users) ----------------
     public void reset() {
         SQLiteDatabase db = this.getWritableDatabase();
+        String deleteAllUsers = "DELETE FROM Users";
+        db.execSQL(deleteAllUsers);
         String deleteAllTransactions = "DELETE FROM Transactions";
         db.execSQL(deleteAllTransactions);
         String resetBalances = "UPDATE Users SET balance =" + 0;

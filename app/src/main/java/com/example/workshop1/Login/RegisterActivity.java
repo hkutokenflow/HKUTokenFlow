@@ -14,6 +14,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.workshop1.Ethereum.AccountManager;
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.Ethereum.WalletGenerator;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
@@ -23,6 +25,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.security.Provider;
 import java.security.Security;
+import java.util.List;
 import java.util.Random;
 
 public class RegisterActivity extends AppCompatActivity {
@@ -33,6 +36,8 @@ public class RegisterActivity extends AppCompatActivity {
     private Mysqliteopenhelper mysqliteopenhelper;
     private int Visiable1 = 0, Visiable2 = 0;
     private String sentCode = "nocode";
+    private AccountManager accountManager;
+    private EthereumManager ethereumManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +54,8 @@ public class RegisterActivity extends AppCompatActivity {
         cb_accept = (CheckBox) findViewById(R.id.accept_policy);
 
         setupBouncyCastle();
+        accountManager = new AccountManager();
+        ethereumManager = new EthereumManager(this);
 
         // ----------------------------SQL----------------------
         mysqliteopenhelper = new Mysqliteopenhelper(this);
@@ -92,7 +99,7 @@ public class RegisterActivity extends AppCompatActivity {
         String inputCode = et_verifyCode.getText().toString().trim();
         if (inputCode.equals(sentCode)) {
             return true;
-            // 可以跳转回注册页面，或者设置一个“认证通过”的标志
+            // 可以跳转回注册页面，或者设置一个"认证通过"的标志
         }
         return false;
     }
@@ -132,26 +139,63 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // Successful registration
+        // ----------------------------Successful registration----------------------------
         // Create wallet
-        String walletAddress = WalletGenerator.generateWalletAddress();
-        if (walletAddress == null) {
-            Toast.makeText(this, "Failed to create wallet. Please try again.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Log.d("Registration", "Wallet created, address: " + walletAddress);
+        Toast.makeText(this, "Creating acount...", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                String walletAddress = accountManager.createGethAccount(pwd);
 
-        // Insert into database
-        User user = new User(username, pwd, "", "student", 0, walletAddress);
-        long res = mysqliteopenhelper.addUser(user);
-        if (res != -1) {
-            Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
-            Log.d("Registration", "Student registered with wallet: " + walletAddress);
-            Intent intent = new Intent(this, LoginActivity.class);
-            startActivity(intent);
-        } else {
-            Toast.makeText(this, "Registration failed", Toast.LENGTH_SHORT).show();
-        }
+                // Switch back to main thread
+                runOnUiThread(() -> {
+                    if (walletAddress == null) {
+                        Toast.makeText(this, "Failed to create wallet. Please try again.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Log.d("Registration", "Wallet created in geth keystore, address: " + walletAddress);
+
+                    // Insert into database
+                    User user = new User(username, pwd, "", "student", 0, walletAddress);
+                    long res = mysqliteopenhelper.addUser(user);
+                    if (res != -1) {
+                        Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
+                        Log.d("Registration", "Student registered with wallet: " + walletAddress);
+                        verifyWalletCreation(walletAddress);
+
+                        Intent intent = new Intent(this, LoginActivity.class);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(this, "Registration failed", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Network error. Please check your connection.", Toast.LENGTH_SHORT).show();
+                    Log.e("Registration", "Unexpected error: " + e.getMessage());
+                });
+            }
+        }).start();
+
+    }
+
+    public void verifyWalletCreation(String walletAddress) {
+        new Thread(() -> {
+            try {
+                // Verify the wallet exists in geth
+                List<String> accounts = accountManager.getGethAccounts();
+                boolean found = accounts.contains(walletAddress.toLowerCase());
+                
+                runOnUiThread(() -> {
+                    if (found) {
+                        Log.d("Registration", "Wallet verification successful: " + walletAddress);
+                    } else {
+                        Log.w("Registration", "Wallet not found in geth accounts");
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("Registration", "Wallet verification failed: " + e.getMessage());
+            }
+        }).start();
     }
 
     // ---------------------------------isHKUEmail---------------------------------

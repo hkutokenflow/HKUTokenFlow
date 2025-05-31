@@ -108,7 +108,7 @@ public class LoginActivity extends AppCompatActivity {
 
         mysqliteopenhelper = new Mysqliteopenhelper(this);
         /* for testing */
-        // mysqliteopenhelper.reset();
+        mysqliteopenhelper.reset();
 
         et_name = findViewById(R.id.et_login_name);
         et_password = findViewById(R.id.et_login_password);
