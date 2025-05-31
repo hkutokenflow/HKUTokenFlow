@@ -22,7 +22,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         String createUsers = "CREATE TABLE Users (_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "username varchar(255), password varchar(255)," +
                 "name varchar(255), type varchar(16), balance INTEGER," +
-                "varchar)";
+                "wallet varchar(42))";  // Ethereum addresses = 42 characters (0x + 40 hex chars)
         db.execSQL(createUsers);
 
         String createTransactions = "CREATE TABLE Transactions (_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -106,7 +106,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         contentValues.put("name", user.getName());
         contentValues.put("type", user.getType());
         contentValues.put("balance", user.getBalance());
-        contentValues.put("wallet_address", user.getWalletAddress());
+        contentValues.put("wallet", user.getWallet());
 
         return db.insert("Users", null, contentValues);
     }
@@ -135,8 +135,9 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
                 String uname = users.getString(3);
                 String type = users.getString(4);
                 int balance = users.getInt(5);
+                String wallet = users.getString(6);
 
-                return new User(username, dbpwd, uname, type, balance);
+                return new User(username, dbpwd, uname, type, balance, wallet);
             }
         }
         return null; // unsuccessful login
@@ -177,6 +178,12 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
             }
         }
         return "(?)";
+    }
+
+    public boolean usernameExists(String username) {
+        SQLiteDatabase db1 = getWritableDatabase();
+        Cursor id =  db1.query("Users", new String[]{"_id"}, "username = ?", new String[] {username}, null, null, null);
+        return id.moveToFirst();
     }
 
     // ------------------ VENDOR ------------------
@@ -540,6 +547,8 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         db.execSQL(deleteAllRewards);
         String deleteAllRewardsA = "DELETE FROM RewardsA";
         db.execSQL(deleteAllRewardsA);
+        String deleteAllVendorApproval = "DELETE FROM VendorApproval";
+        db.execSQL(deleteAllVendorApproval);
     }
 
     // Get all vendor approvals

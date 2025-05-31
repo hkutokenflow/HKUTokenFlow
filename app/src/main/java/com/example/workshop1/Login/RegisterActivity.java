@@ -19,6 +19,10 @@ import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.security.Provider;
+import java.security.Security;
 import java.util.Random;
 
 public class RegisterActivity extends AppCompatActivity {
@@ -44,6 +48,8 @@ public class RegisterActivity extends AppCompatActivity {
 
         cb_accept = (CheckBox) findViewById(R.id.accept_policy);
 
+        setupBouncyCastle();
+
         // ----------------------------SQL----------------------
         mysqliteopenhelper = new Mysqliteopenhelper(this);
         Button btn_sendCode = findViewById(R.id.btn_sendCode);
@@ -56,6 +62,10 @@ public class RegisterActivity extends AppCompatActivity {
         String email = et_email.getText().toString().trim();
         if (!isHKUEmail(email)) {
             Toast.makeText(this, "Must use HKU email", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (mysqliteopenhelper.usernameExists(email)) {
+            Toast.makeText(this, "Email is already associated with an account", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -90,12 +100,12 @@ public class RegisterActivity extends AppCompatActivity {
     // --------------------------------------register--------------------------------------
 
     public void register_newuser(View view) {
-        String name = et_email.getText().toString();
+        String username = et_email.getText().toString();
         String pwd = et_pwd.getText().toString();
         String equal = et_equal.getText().toString();
 
         // 检查邮箱格式是否为学校邮箱
-        if (!isHKUEmail(name)) {
+        if (!isHKUEmail(username)) {
             Toast.makeText(this, "Email must be your HKU email", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -122,13 +132,17 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
+        // Successful registration
+        // Create wallet
         String walletAddress = WalletGenerator.generateWalletAddress();
         if (walletAddress == null) {
             Toast.makeText(this, "Failed to create wallet. Please try again.", Toast.LENGTH_SHORT).show();
             return;
         }
+        Log.d("Registration", "Wallet created, address: " + walletAddress);
 
-        User user = new User(name, pwd, "", "student");
+        // Insert into database
+        User user = new User(username, pwd, "", "student", 0, walletAddress);
         long res = mysqliteopenhelper.addUser(user);
         if (res != -1) {
             Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
@@ -195,6 +209,20 @@ public class RegisterActivity extends AppCompatActivity {
             iv_eye3.setImageResource(R.drawable.baseline_visibility_off_24);
             Visiable2 = 0;
         }
+    }
+
+    private void setupBouncyCastle() {
+        final Provider provider = Security.getProvider(BouncyCastleProvider.PROVIDER_NAME);
+        if (provider == null) {
+            // Web3j will set up the provider lazily when it's first used.
+            return;
+        }
+        if (provider.getClass().equals(BouncyCastleProvider.class)) {
+            // BC with same package name, shouldn't happen in real life.
+            return;
+        }
+        Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
+        Security.insertProviderAt(new BouncyCastleProvider(), 1);
     }
 
 }
