@@ -154,6 +154,8 @@ public class RegisterActivity extends AppCompatActivity {
                     }
                     Log.d("Registration", "Wallet created in geth keystore, address: " + walletAddress);
 
+                    verifyWalletCreation(walletAddress);
+
                     // Insert into database
                     User user = new User(username, pwd, "", "student", 0, walletAddress);
                     long res = mysqliteopenhelper.addUser(user);
@@ -162,7 +164,6 @@ public class RegisterActivity extends AppCompatActivity {
                         
                         Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
                         Log.d("Registration", "Student registered with wallet: " + walletAddress);
-                        verifyWalletCreation(walletAddress);
 
                         Intent intent = new Intent(this, LoginActivity.class);
                         startActivity(intent);

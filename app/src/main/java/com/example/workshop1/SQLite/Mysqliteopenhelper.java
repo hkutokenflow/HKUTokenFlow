@@ -186,6 +186,17 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         return id.moveToFirst();
     }
 
+    public int getUserIdFromWallet(String walletAddress) {
+        SQLiteDatabase db1 = getWritableDatabase();
+        Cursor cursor = db1.query("Users", new String[]{"_id"}, "wallet = ?", new String[]{walletAddress}, null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            int userId = cursor.getInt(0);
+            cursor.close();
+            return userId;
+        }
+        return -999; // Not found
+    }
+
     // ------------------ VENDOR ------------------
     // get vendor list
     public Cursor getVendors() {
@@ -551,6 +562,9 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
         db.execSQL(deleteAllRewardsA);
         String deleteAllVendorApproval = "DELETE FROM VendorApproval";
         db.execSQL(deleteAllVendorApproval);
+
+        String addAdmin = "INSERT INTO Users VALUES(1, 'admin', 'admin123', 'HKU TokenFlow Admin', 'admin', 0, NULL)";
+        db.execSQL(addAdmin);
     }
 
     // Get all vendor approvals

@@ -1,6 +1,7 @@
 package com.example.workshop1.Ethereum;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.util.Log;
 
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
@@ -10,6 +11,7 @@ import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.admin.methods.response.NewAccountIdentifier;
+import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.methods.response.BooleanResponse;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.http.HttpService;
@@ -18,6 +20,11 @@ import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.ContractGasProvider;
 import org.web3j.tx.gas.DefaultGasProvider;
 import org.web3j.utils.Convert;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.request.EthFilter;
+import org.web3j.protocol.core.methods.response.EthLog;
+import java.util.*;
+import java.text.SimpleDateFormat;
 
 import java.math.BigInteger;
 import java.math.BigDecimal;
@@ -68,6 +75,7 @@ public class EthereumManager {
 
     // ------------------------ Wallet interactions ------------------------
 
+    // Mint tokens to wallet address
     public void mintTokens(String toAddress, BigInteger amount) {
         boolean manualMiningStart = false;
         try {                
@@ -108,6 +116,7 @@ public class EthereumManager {
         }
     }
 
+    // Get wallet balance
     public BigInteger getBalance(String address) {
         try {
             BigInteger tokenUnits = contract.balanceOf(address).send();
@@ -119,6 +128,252 @@ public class EthereumManager {
             return BigInteger.ZERO;
         }
     }
+
+    // Get user wallet transaction records
+    public List<BlockchainTransaction> getWalletTransactionHistory(String walletAddress) {
+        List<BlockchainTransaction> transactions = new ArrayList<>();
+
+        Log.d("EthereumManager", "=== Starting getWalletTransactionHistory ===");
+        Log.d("EthereumManager", "Wallet address: " + walletAddress);
+        
+        try {           
+            // Get all transfer events to this address (receiver = address, includes minting)
+            Log.d("EthereumManager", "--- Searching for Transfer events TO address ---");
+            List<Sc_test.TransferEventResponse> transferToEvents = getTransferEventsTo(walletAddress);
+            Log.d("EthereumManager", "Found " + transferToEvents.size() + " Transfer TO events");
+
+            for (Sc_test.TransferEventResponse event : transferToEvents) {
+                Log.d("EthereumManager", "Processing Transfer TO event:");
+                Log.d("EthereumManager", "  - Block: " + event.log.getBlockNumber());
+                Log.d("EthereumManager", "  - From: " + event.from);
+                Log.d("EthereumManager", "  - To: " + event.to);
+                Log.d("EthereumManager", "  - Value (wei): " + event.value);
+
+                String timestamp = getBlockTimestamp(event.log.getBlockNumber());
+
+                // minting (from zero address)
+                if (event.from.equals("0x0000000000000000000000000000000000000000")) {
+                    // Get event name from SQLite database
+                    String eventName = getEventNameFromBlockchainData(walletAddress, event.value, timestamp);
+                    String description = eventName != null ? 
+                        "Event Check-in: " + eventName : 
+                        "Event Check-in";
+                    
+                    BlockchainTransaction tx = new BlockchainTransaction(
+                        event.log.getBlockNumber(),
+                        timestamp,
+                        description,
+                        "+" + convertWeiToTokens(event.value).toString(),
+                        "MINT"
+                    );
+                    transactions.add(tx);
+                    Log.d("EthereumManager", "  - Added MINTING transaction: " + tx.description + " " + tx.amount);
+                } else {
+                    // Regular transfers to address
+                    BlockchainTransaction tx = new BlockchainTransaction(
+                        event.log.getBlockNumber(),
+                        timestamp,
+                        "Transfer Received",
+                        "+" + convertWeiToTokens(event.value).toString(),
+                        "TRANSFER_IN"
+                    );
+                    transactions.add(tx);
+                    Log.d("EthereumManager", "  - Added TRANSFER transaction: " + tx.description + " " + tx.amount);
+                }
+            }
+
+            // Get all transfer events from this address (sender = address)
+            Log.d("EthereumManager", "--- Searching for Transfer events FROM address ---");
+            List<Sc_test.TransferEventResponse> transferFromEvents = getTransferEventsFrom(walletAddress);
+            Log.d("EthereumManager", "Found " + transferFromEvents.size() + " Transfer FROM events");
+            
+            for (Sc_test.TransferEventResponse event : transferFromEvents) {
+                Log.d("EthereumManager", "Processing Transfer FROM event:");
+                Log.d("EthereumManager", "  - Block: " + event.log.getBlockNumber());
+                Log.d("EthereumManager", "  - From: " + event.from);
+                Log.d("EthereumManager", "  - To: " + event.to);
+                Log.d("EthereumManager", "  - Value (wei): " + event.value);
+
+                String timestamp = getBlockTimestamp(event.log.getBlockNumber());
+                BlockchainTransaction tx = new BlockchainTransaction(
+                    event.log.getBlockNumber(),
+                    timestamp,
+                    "Transfer Sent",
+                    "-" + convertWeiToTokens(event.value).toString(),
+                    "TRANSFER_OUT"
+                );
+                transactions.add(tx);
+                Log.d("EthereumManager", "  - Added transfer: " + tx.description + " " + tx.amount);
+            }
+            
+            // Sort by block number (newest first)
+            Log.d("EthereumManager", "--- Sorting " + transactions.size() + " total transactions ---");
+            transactions.sort((a, b) -> b.blockNumber.compareTo(a.blockNumber));
+
+            Log.d("EthereumManager", "=== Final transaction list ===");
+            for (int i = 0; i < transactions.size(); i++) {
+                BlockchainTransaction tx = transactions.get(i);
+                Log.d("EthereumManager", "Transaction " + (i+1) + ": " + tx.description + " | " + tx.amount + " | " + tx.timestamp + " | Block: " + tx.blockNumber);
+            }
+            
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting transaction history: " + e.getMessage());
+            Log.e("EthereumManager", "Exception details: ", e);
+        }
+    
+        return transactions;
+    }
+
+    // Get TokensMinted events for a specific address
+    private List<Sc_test.TokensMintedEventResponse> getMintedEvents(String address) throws Exception {
+        EthFilter filter = new EthFilter(
+            DefaultBlockParameterName.EARLIEST,
+            DefaultBlockParameterName.LATEST,
+            CONTRACT_ADDRESS
+        );
+        
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TOKENSMINTED_EVENT));
+        filter.addSingleTopic(null); // Second topic is the 'to' address (indexed)
+        filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // Format address as topic
+        
+        EthLog ethLog = web3j.ethGetLogs(filter).send();
+        List<Sc_test.TokensMintedEventResponse> events = new ArrayList<>();
+        
+        for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
+            org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
+            events.add(Sc_test.getTokensMintedEventFromLog(log));
+        }
+        
+        return events;
+    }
+
+    // Get Transfer events where receiver = address
+    private List<Sc_test.TransferEventResponse> getTransferEventsTo(String address) throws Exception {
+        EthFilter filter = new EthFilter(
+            DefaultBlockParameterName.EARLIEST,
+            DefaultBlockParameterName.LATEST,
+            CONTRACT_ADDRESS
+        );
+        
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+        filter.addSingleTopic(null); // 'from' address (skip)
+        filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // 'to' address
+        
+        EthLog ethLog = web3j.ethGetLogs(filter).send();
+        List<Sc_test.TransferEventResponse> events = new ArrayList<>();
+        
+        for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
+            org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
+            events.add(Sc_test.getTransferEventFromLog(log));
+        }
+        
+        return events;
+    }
+
+    // Get Transfer events where sender = address
+    private List<Sc_test.TransferEventResponse> getTransferEventsFrom(String address) throws Exception {
+        EthFilter filter = new EthFilter(
+            DefaultBlockParameterName.EARLIEST,
+            DefaultBlockParameterName.LATEST,
+            CONTRACT_ADDRESS
+        );
+        
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+        filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // 'from' address
+        
+        EthLog ethLog = web3j.ethGetLogs(filter).send();
+        List<Sc_test.TransferEventResponse> events = new ArrayList<>();
+        
+        for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
+            org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
+            events.add(Sc_test.getTransferEventFromLog(log));
+        }
+        
+        return events;
+    }
+
+    // Get block timestamp
+    private String getBlockTimestamp(BigInteger blockNumber) {
+        try {
+            BigInteger timestamp = web3j.ethGetBlockByNumber(DefaultBlockParameter.valueOf(blockNumber), false).send().getBlock().getTimestamp();
+            
+            Date date = new Date(timestamp.longValue() * 1000); // Convert to milliseconds
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+            return sdf.format(date);
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting block timestamp: " + e.getMessage());
+            return "Unknown time";
+        }
+    }
+
+    // Get event name from blockchain transaction
+    private String getEventNameFromBlockchainData(String walletAddress, BigInteger tokenAmount, String timestamp) {
+        try {
+            int userId = mysqliteopenhelper.getUserIdFromWallet(walletAddress);
+            if (userId == -999) {
+                Log.w("EthereumManager", "Could not find user for wallet: " + walletAddress);
+                return null;
+            }
+            // Convert token amount back to integer for SQLite comparison
+            int amount = convertWeiToTokens(tokenAmount).intValue();
+            
+            // Parse timestamp for rough comparison (transactions might be a few seconds apart)
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+            Date blockchainDate = sdf.parse(timestamp);
+
+            // Look for SQLite transaction with matching user, amount, and timestamp (within 5 minutes)
+            Cursor cursor = mysqliteopenhelper.getUserTrans(userId);
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    String sqliteTimestamp = cursor.getString(1);
+                    int sqliteAmount = cursor.getInt(4);
+                    String transactionType = cursor.getString(6);
+                    
+                    // Only check event check-ins (type 'e')
+                    if (transactionType.equals("e") && sqliteAmount == amount) {
+                        try {
+                            Date sqliteDate = sdf.parse(sqliteTimestamp);
+                            long timeDiff = Math.abs(blockchainDate.getTime() - sqliteDate.getTime());
+                            
+                            // If timestamps are within 5 minutes (300,000 ms), consider it a match
+                            if (timeDiff < 300000) {
+                                int eventId = cursor.getInt(5);
+                                String eventName = mysqliteopenhelper.getEventName(eventId);
+                                Log.d("EthereumManager", "Found matching event: " + eventName + " (amount: " + amount + ")");
+                                cursor.close();
+                                return eventName;
+                            }
+                        } catch (Exception e) {
+                            Log.w("EthereumManager", "Error parsing SQLite timestamp: " + sqliteTimestamp);
+                        }
+                    }
+                }
+                cursor.close();
+            }
+            Log.w("EthereumManager", "No matching SQLite event found for amount " + amount + " at " + timestamp);
+            return null;
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting event name from SQLite: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public static class BlockchainTransaction {
+        public BigInteger blockNumber;
+        public String timestamp;
+        public String description;
+        public String amount;
+        public String type;
+        
+        public BlockchainTransaction(BigInteger blockNumber, String timestamp, String description, String amount, String type) {
+            this.blockNumber = blockNumber;
+            this.timestamp = timestamp;
+            this.description = description;
+            this.amount = amount;
+            this.type = type;
+        }
+    }
+
 
     // ------------------------ Manage roles ------------------------
 

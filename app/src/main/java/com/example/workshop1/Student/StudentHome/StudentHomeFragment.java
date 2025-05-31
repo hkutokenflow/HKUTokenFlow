@@ -86,30 +86,27 @@ public class StudentHomeFragment extends Fragment {
         transactionsTable = root.findViewById(R.id.recent_transactions_table);
         searchEditText = root.findViewById(R.id.transaction_search);
 
-        int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
-        Cursor cursor = mysqliteopenhelper.getUserTrans(uid);
-        if (cursor.getCount() != 0) {
-            while (cursor.moveToNext()) {
-                String datetime = cursor.getString(1);
-                Log.d("StudentHome", "datetime: " + datetime);
-                int src = cursor.getInt(2);
-                int amt = cursor.getInt(4);
-
-                // determine +ve or -ve amt (-ve if source is student, ie student pay)
-                if (src == uid) { amt = -amt; }
-
-                // get event / reward name
-                String event;
-                if (cursor.getString(6).equals("e")) {
-                    int eid = cursor.getInt(5);
-                    event = mysqliteopenhelper.getEventName(eid);
-                } else if (cursor.getString(6).equals("r")) {
-                    int rid = cursor.getInt(5);
-                    event = mysqliteopenhelper.getRewardName(rid);
-                } else { event = "Invalid"; }
-
-                allTransactions.add(new Transaction(datetime, event, String.valueOf(amt)));
-            }
+        // Load blockchain transaction records
+        if (thisUser != null && thisUser.getWallet() != null) {
+            new Thread(() -> {
+                try {
+                    List<EthereumManager.BlockchainTransaction> transactions = ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+                    requireActivity().runOnUiThread(() -> {
+                        allTransactions.clear();
+                        for (EthereumManager.BlockchainTransaction tx : transactions) {
+                            allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
+                        }
+                        displayTransactions(allTransactions);
+                    });
+                } catch (Exception e) {
+                    Log.e("StudentHome", "Error loading blockchain transactions: " + e.getMessage());
+                    requireActivity().runOnUiThread(() -> {
+                        loadSQLiteTransactions(thisUser);  // Fallback to SQLite if error
+                    });
+                }
+            }).start();
+        } else {
+            loadSQLiteTransactions(thisUser);
         }
 
         // setupDummyData(); // SQLite
@@ -179,9 +176,6 @@ public class StudentHomeFragment extends Fragment {
             transactionsTable.addView(row);
             index++;
         }
-
-
-
     }
 
     private TextView createCell(String text) {
@@ -222,6 +216,34 @@ public class StudentHomeFragment extends Fragment {
             return date.toLowerCase().contains(lower) ||
                     event.toLowerCase().contains(lower) ||
                     balance.toLowerCase().contains(lower);
+        }
+    }
+
+    private void loadSQLiteTransactions(User thisUser) {
+        int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
+        Cursor cursor = mysqliteopenhelper.getUserTrans(uid);
+        if (cursor.getCount() != 0) {
+            while (cursor.moveToNext()) {
+                String datetime = cursor.getString(1);
+                Log.d("StudentHome", "datetime: " + datetime);
+                int src = cursor.getInt(2);
+                int amt = cursor.getInt(4);
+
+                // determine +ve or -ve amt (-ve if source is student, ie student pay)
+                if (src == uid) { amt = -amt; }
+
+                // get event / reward name
+                String event;
+                if (cursor.getString(6).equals("e")) {
+                    int eid = cursor.getInt(5);
+                    event = mysqliteopenhelper.getEventName(eid);
+                } else if (cursor.getString(6).equals("r")) {
+                    int rid = cursor.getInt(5);
+                    event = mysqliteopenhelper.getRewardName(rid);
+                } else { event = "Invalid"; }
+
+                allTransactions.add(new Transaction(datetime, event, String.valueOf(amt)));
+            }
         }
     }
 }

@@ -132,6 +132,10 @@ public class EventCheckinFragment extends Fragment {
                             return;
                         }
 
+                        // Insert into database for event name retrieval
+                        Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
+                        mysqliteopenhelper.addTransaction(trans);
+
                         showMintingProgress(eName, reward);
 
                         // Mint tokens in background thread
@@ -146,10 +150,6 @@ public class EventCheckinFragment extends Fragment {
                                 
                                 // Update UI on main thread
                                 requireActivity().runOnUiThread(() -> {
-                                    // Add transaction to local database for record keeping
-                                    Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
-                                    mysqliteopenhelper.addTransaction(trans);
-                                    
                                     dismissMintingProgress();
                                     Toast.makeText(getContext(), 
                                         "Check-in successful!\nEvent: " + eName,

@@ -6,7 +6,7 @@ public class BlockchainConfig {
     // NETWORK CONFIGURATION
     // =========================
     
-    public static final String BLOCKCHAIN_URL = "https://cd88-221-127-146-244.ngrok-free.app";
+    public static final String BLOCKCHAIN_URL = "https://d7d7-221-127-146-244.ngrok-free.app";
     // public static final String BLOCKCHAIN_URL = "http://localhost:8545";     
     
     public static final long CHAIN_ID = 1234;
