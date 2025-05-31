@@ -66,7 +66,7 @@ public class EthereumManager {
         loadTokenDecimals();
     }
 
-    // ------------------------ Transactions ------------------------
+    // ------------------------ Wallet interactions ------------------------
 
     public void mintTokens(String toAddress, BigInteger amount) {
         boolean manualMiningStart = false;
@@ -249,7 +249,7 @@ public class EthereumManager {
 }
 
 
-/* test blockchain connection
+/* test blockchain connection + examples
 
     new Thread(() -> {
         Web3j web3 = Web3j.build(new HttpService(BLOCKCHAIN_URL));

@@ -55,7 +55,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:text="1,234"
+                        android:text=""
                         android:textColor="#00BFFF"
                         android:textSize="20sp"
                         android:textStyle="bold" />

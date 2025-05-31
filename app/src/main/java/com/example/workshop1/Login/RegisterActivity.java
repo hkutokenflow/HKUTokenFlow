@@ -141,7 +141,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         // ----------------------------Successful registration----------------------------
         // Create wallet
-        Toast.makeText(this, "Creating acount...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Creating account...", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             try {
                 String walletAddress = accountManager.createGethAccount(pwd);

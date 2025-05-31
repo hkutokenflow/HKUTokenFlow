@@ -14,7 +14,9 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
+import android.app.ProgressDialog;
 
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.Transaction;
@@ -22,6 +24,7 @@ import com.example.workshop1.SQLite.User;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
+import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -37,6 +40,8 @@ public class EventCheckinFragment extends Fragment {
     private Button scanBtn;
     private String checkInId;  // 用于存储扫描到的eventid
     private Mysqliteopenhelper mysqliteopenhelper;
+    private EthereumManager ethereumManager;
+    private ProgressDialog progressDialog;
 
     @Nullable
     @Override
@@ -48,6 +53,8 @@ public class EventCheckinFragment extends Fragment {
         eventListView = view.findViewById(R.id.student_event_list_view);
         scanBtn = view.findViewById(R.id.btn_scan_qr);
         eventList = new ArrayList<>();
+
+        ethereumManager = new EthereumManager(getContext());
 
         //------------------------Event List----------------------------------
         mysqliteopenhelper = new Mysqliteopenhelper(requireContext());
@@ -113,20 +120,56 @@ public class EventCheckinFragment extends Fragment {
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
                         String formattedDateTime = sdf.format(calendar.getTime());
 
-                        // get event reward
+                        // get event details
                         int reward = mysqliteopenhelper.getEventReward(checkInIdNum);
-
-                        Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
-                        mysqliteopenhelper.addTransaction(trans);
-
                         String eName = mysqliteopenhelper.getEventName(checkInIdNum);
 
-                        Toast.makeText(getContext(), "Check-in successful!\nEvent: " + eName, Toast.LENGTH_LONG).show();
+                        // Get student's wallet address
+                        String studentWalletAddress = thisUser.getWallet();
+                        
+                        if (studentWalletAddress == null || studentWalletAddress.isEmpty()) {
+                            Toast.makeText(getContext(), "Check-in unsuccessful\nStudent wallet not found", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        showMintingProgress(eName, reward);
+
+                        // Mint tokens in background thread
+                        new Thread(() -> {
+                            try {
+                                Log.d("EventCheckin", "Starting token minting...");
+                                Log.d("EventCheckin", "Student wallet: " + studentWalletAddress);
+                                Log.d("EventCheckin", "Tokens to mint: " + reward);
+                                
+                                // Mint tokens to student's wallet
+                                ethereumManager.mintTokens(studentWalletAddress, BigInteger.valueOf(reward));
+                                
+                                // Update UI on main thread
+                                requireActivity().runOnUiThread(() -> {
+                                    // Add transaction to local database for record keeping
+                                    Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
+                                    mysqliteopenhelper.addTransaction(trans);
+                                    
+                                    dismissMintingProgress();
+                                    Toast.makeText(getContext(), 
+                                        "Check-in successful!\nEvent: " + eName,
+                                        Toast.LENGTH_SHORT).show();
+                                        
+                                    Log.d("EventCheckin", "Token minting completed successfully");
+                                });
+                                
+                            } catch (Exception e) {
+                                Log.e("EventCheckin", "Error minting tokens: " + e.getMessage());
+                                requireActivity().runOnUiThread(() -> {
+                                    dismissMintingProgress();
+                                    Toast.makeText(getContext(), 
+                                        "Check-in recorded but token minting failed. Please contact admin.", 
+                                        Toast.LENGTH_LONG).show();
+                                });
+                            }
+                        }).start();
                     }
                 }
-
-                // 此时，eventId就已经存储了，可以进行后续的数据库查询操作等
-                // SQL查询，调用网络接口查询eventId是否有效，或是签到操作等。
             } else {
                 Toast.makeText(getContext(), "Scan Cancelled", Toast.LENGTH_SHORT).show();
             }
@@ -136,6 +179,29 @@ public class EventCheckinFragment extends Fragment {
     // 如果后续需要获取eventId的地方，可以通过调用getCheckInId()方法来获取
     public String getCheckInId() {
         return checkInId;
+    }
+
+    private void showMintingProgress(String eventName, int tokens) {
+        if (progressDialog != null && progressDialog.isShowing()) { progressDialog.dismiss(); }
+        progressDialog = new ProgressDialog(getContext());
+        progressDialog.setTitle("Processing Transaction...");
+        progressDialog.setMessage("Minting " + tokens + " HKUTokens to your blockchain wallet.\nThis may take a moment.");
+        progressDialog.setIndeterminate(true);
+        progressDialog.setCancelable(false); 
+        progressDialog.show();
+    }
+    
+    private void dismissMintingProgress() {
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
+    
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // Clean up progress dialog
+        dismissMintingProgress();
     }
 
 }

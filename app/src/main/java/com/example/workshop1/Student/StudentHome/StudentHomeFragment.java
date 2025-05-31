@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.workshop1.Admin.RecentTransaction.RecentTransactionsFragment;
 import com.example.workshop1.Admin.Vendor.VendorItem;
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
@@ -31,6 +32,7 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +45,7 @@ public class StudentHomeFragment extends Fragment {
     private EditText searchEditText;
     private List<Transaction> allTransactions = new ArrayList<>();
     private Mysqliteopenhelper mysqliteopenhelper;
+    private EthereumManager ethereumManager;
 
 
     @Override
@@ -51,21 +54,35 @@ public class StudentHomeFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_student_home, container, false);
 
         mysqliteopenhelper = new Mysqliteopenhelper(getContext());
+        ethereumManager = new EthereumManager(getContext());
 
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
 
-        // wallet balance
+        // ---------- wallet balance ----------
         studentWalletText = root.findViewById(R.id.student_wallet_balance);
+        
         if (thisUser != null) {
-            int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
-            int currentBalance = mysqliteopenhelper.getUserBalance(uid);
-            studentWalletText.setText(String.valueOf(currentBalance));
-            // studentWalletText.setText(String.valueOf(thisUser.getBalance()));
+            Log.d("Student Home", "User wallet address: " + thisUser.getWallet());
+            
+            new Thread(() -> {
+                try {
+                    BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+                    requireActivity().runOnUiThread(() -> {
+                        String displayBalance = currentBalance + " HKUT";
+                        studentWalletText.setText(displayBalance);
+                    });
+                } catch (Exception e) {
+                    Log.e("Student Home", "Error getting balance: " + e.getMessage());
+                    requireActivity().runOnUiThread(() -> {
+                        studentWalletText.setText("Error loading balance");
+                    });
+                }
+            }).start();
         } else {
             studentWalletText.setText("Balance not available");
         }
 
-        //transaction table
+        // ---------- transaction table ----------
         transactionsTable = root.findViewById(R.id.recent_transactions_table);
         searchEditText = root.findViewById(R.id.transaction_search);
 
@@ -115,11 +132,24 @@ public class StudentHomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        // Refresh blockchain balance when fragment resumes
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
-        if (thisUser != null) {
-            int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
-            int currentBalance = mysqliteopenhelper.getUserBalance(uid);
-            studentWalletText.setText(String.valueOf(currentBalance));
+        if (thisUser != null && ethereumManager != null) {
+            
+            new Thread(() -> {
+                try {
+                    BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+                    requireActivity().runOnUiThread(() -> {
+                        String displayBalance = currentBalance + " HKUT";
+                        studentWalletText.setText(displayBalance);
+                    });
+                } catch (Exception e) {
+                    Log.e("Student Home", "Error refreshing balance: " + e.getMessage());
+                    requireActivity().runOnUiThread(() -> {
+                        studentWalletText.setText("Error loading balance");
+                    });
+                }
+            }).start();
         }
     }
 

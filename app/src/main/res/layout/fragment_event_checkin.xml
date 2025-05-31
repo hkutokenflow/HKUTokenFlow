@@ -33,7 +33,7 @@
             android:paddingLeft="20dp"
             android:paddingRight="20dp"
             android:layout_marginBottom="8dp"
-            android:text="Event check-in"
+            android:text="Check-in"
             android:textAllCaps="false"
             android:textColor="#FFFFFF"
             android:textSize="18sp" />
