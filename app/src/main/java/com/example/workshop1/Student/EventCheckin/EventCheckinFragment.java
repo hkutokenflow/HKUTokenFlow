@@ -16,6 +16,7 @@ import android.widget.ListView;
 import android.widget.Toast;
 import android.app.ProgressDialog;
 
+import com.example.workshop1.Ethereum.BlockchainConfig;
 import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
@@ -55,6 +56,14 @@ public class EventCheckinFragment extends Fragment {
         eventList = new ArrayList<>();
 
         ethereumManager = new EthereumManager(getContext());
+
+        // Initialize with admin credentials
+        // TODO: In production, get password securely from Android Keystore or user input
+        boolean initialized = ethereumManager.initializeWithPassword(BlockchainConfig.TEMP_ADMIN_PASSWORD);
+        if (!initialized) {
+            Log.e("EventCheckin", "Failed to initialize EthereumManager with admin credentials");
+            Toast.makeText(getContext(), "Blockchain initialization failed. Please contact admin.", Toast.LENGTH_LONG).show();
+        }
 
         //------------------------Event List----------------------------------
         mysqliteopenhelper = new Mysqliteopenhelper(requireContext());

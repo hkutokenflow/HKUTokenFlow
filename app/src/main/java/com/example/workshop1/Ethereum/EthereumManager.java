@@ -31,9 +31,9 @@ import java.math.BigDecimal;
 
 public class EthereumManager {
     private static final String BLOCKCHAIN_URL = BlockchainConfig.BLOCKCHAIN_URL;
-    private static final String PRIVATE_KEY = BlockchainConfig.ADMIN_PRIVATE_KEY;
     private static final String CONTRACT_ADDRESS = BlockchainConfig.TOKEN_CONTRACT_ADDRESS;
-    private static final Credentials credentials = Credentials.create(PRIVATE_KEY);
+    //private static final String PRIVATE_KEY = BlockchainConfig.ADMIN_PRIVATE_KEY;
+    //private static final Credentials credentials = Credentials.create(PRIVATE_KEY);
     private static final long CHAIN_ID = 1234;
 
     private final Web3j web3j;
@@ -42,7 +42,10 @@ public class EthereumManager {
     private final Mysqliteopenhelper mysqliteopenhelper;
     private final Context context;
     private Sc_test contract;
-    private final TransactionManager transactionManager;
+    private TransactionManager transactionManager;
+    private Credentials adminCredentials;
+
+    private boolean isInitialized = false;
 
     private BigInteger tokenDecimals = null;
 
@@ -55,28 +58,56 @@ public class EthereumManager {
         admin = Admin.build(httpService); 
 
         gasProvider = new DefaultGasProvider();
+        Log.d("Ethereum Manager", "EthereumManager created - call initializeWithPassword() before use");
+    }
 
-        transactionManager = new RawTransactionManager(web3j, credentials, CHAIN_ID);
-
+    public boolean initializeWithPassword(String keystorePassword) {
         try {
-            // Load the smart contract using unlocked account from Geth
+            // Load admin credentials from keystore
+            adminCredentials = KeystoreManager.loadAdminCredentials(context, keystorePassword);
+
+            if (adminCredentials == null) {
+                Log.e("Ethereum Manager", "Failed to load admin credentials");
+                return false;
+            }
+
+            // Create transaction manager with loaded credentials
+            transactionManager = new RawTransactionManager(web3j, adminCredentials, CHAIN_ID);
+
+            // Load smart contract with admin credentials
             contract = Sc_test.load(
                     CONTRACT_ADDRESS,
                     web3j,
                     transactionManager,
                     gasProvider
             );
-            Log.d("Ethereum Manager", "Smart contract loaded successfully");
+
+            loadTokenDecimals();
+            isInitialized = true;
+            Log.d("Ethereum Manager", "Successfully initialized with admin credentials");
+            Log.d("Ethereum Manager", "Admin address: " + adminCredentials.getAddress());
+            return true;
+
         } catch (Exception e) {
-            Log.e("Ethereum Manager", "Error loading smart contract: " + e.getMessage());
+            Log.e("Ethereum Manager", "Error initializing with password: " + e.getMessage());
+            return false;
         }
-        loadTokenDecimals();
+    }
+
+    // Check if EthereumManager is initialized
+    public boolean isInitialized() {
+        return isInitialized && adminCredentials != null && transactionManager != null && contract != null;
     }
 
     // ------------------------ Wallet interactions ------------------------
 
     // Mint tokens to wallet address
     public void mintTokens(String toAddress, BigInteger amount) {
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeWithPassword() first.");
+            throw new IllegalStateException("EthereumManager not initialized. Call initializeWithPassword() first.");
+        }
+        
         boolean manualMiningStart = false;
         try {                
             long startTime = System.currentTimeMillis();
@@ -500,7 +531,6 @@ public class EthereumManager {
             Log.e("Ethereum Manager", "Error getting chain ID: " + e.getMessage());
         }
     }
-
 }
 
 
