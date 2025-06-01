@@ -131,20 +131,17 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     }
 
     // login
-    public User login(String name, String password) {
+    public User checkUsername(String name) {
         SQLiteDatabase db1 = getWritableDatabase();
         Cursor users = db1.query("Users", null, "username like?", new String[] { name }, null, null, null);
         if (users != null && users.moveToNext()) {
+            String username = users.getString(1);
             String dbpwd = users.getString(2);
-            if (password.equals(dbpwd)) {
-                String username = users.getString(1);
-                String uname = users.getString(3);
-                String type = users.getString(4);
-                int balance = users.getInt(5);
-                String wallet = users.getString(6);
-
-                return new User(username, dbpwd, uname, type, balance, wallet);
-            }
+            String uname = users.getString(3);
+            String type = users.getString(4);
+            int balance = users.getInt(5);
+            String wallet = users.getString(6);
+            return new User(username, dbpwd, uname, type, balance, wallet);
         }
         return null; // unsuccessful login
     }

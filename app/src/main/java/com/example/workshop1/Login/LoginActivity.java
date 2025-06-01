@@ -127,14 +127,13 @@ public class LoginActivity extends AppCompatActivity {
         // 登陆按钮监听，验证码是否正确
         String phoneCode = et_phoneCode.getText().toString().toLowerCase();// 大小写都行
         if (phoneCode.equals(realCode)) {
-            // Toast.makeText(this, phoneCode + "Verification Code CORRECT",
-            // Toast.LENGTH_SHORT).show();
 
             // 验证码正确之后再尝试登陆
-            User login_success = mysqliteopenhelper.login(account, password);
-            if (login_success != null) {
+
+            User accountRecord = mysqliteopenhelper.checkUsername(account);
+            if (accountRecord != null) {
                 // 验证密码
-                if (!PasswordEncryption.verifyPassword(password, login_success.getPassword())) {
+                if (!PasswordEncryption.verifyPassword(password, accountRecord.getPassword())) {
                     Toast.makeText(this, "Incorrect password", Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -155,7 +154,7 @@ public class LoginActivity extends AppCompatActivity {
                 Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show();
 
                 // -----------------------Jump to right activity----------------------
-                String type = login_success.getType();
+                String type = accountRecord.getType();
 
                 Intent intent = null;
 
@@ -175,11 +174,11 @@ public class LoginActivity extends AppCompatActivity {
                         return;
                 }
 
-                intent.putExtra("userObj", login_success);
+                intent.putExtra("userObj", accountRecord);
                 startActivity(intent); // 登陆成功，跳转到对应的 Activity
 
             } else {
-                Toast.makeText(this, "Incorrect email or password", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Incorrect username", Toast.LENGTH_SHORT).show();
             }
         } else {
             Toast.makeText(this, "Verification code error!", Toast.LENGTH_SHORT).show();
