@@ -58,16 +58,16 @@ public class EthereumManager {
         admin = Admin.build(httpService); 
 
         gasProvider = new DefaultGasProvider();
-        Log.d("Ethereum Manager", "EthereumManager created - call initializeWithPassword() before use");
+        Log.d("Ethereum Manager", "EthereumManager created - call initializeSecurely() before use");
     }
 
-    public boolean initializeWithPassword(String keystorePassword) {
+    // Initialize EthereumManager with secure Android Keystore credentials
+    public boolean initializeSecurely() { 
         try {
-            // Load admin credentials from keystore
-            adminCredentials = KeystoreManager.loadAdminCredentials(context, keystorePassword);
-
+            // Load credentials from Android Keystore (faster than SCrypt, prevent out of memory error)
+            adminCredentials = SecurePrivateKeyManager.loadSecureCredentials(context);
             if (adminCredentials == null) {
-                Log.e("Ethereum Manager", "Failed to load admin credentials");
+                Log.e("Ethereum Manager", "Failed to load secure credentials");
                 return false;
             }
 
@@ -84,12 +84,12 @@ public class EthereumManager {
 
             loadTokenDecimals();
             isInitialized = true;
-            Log.d("Ethereum Manager", "Successfully initialized with admin credentials");
+            Log.d("Ethereum Manager", "Successfully initialized with secure credentials");
             Log.d("Ethereum Manager", "Admin address: " + adminCredentials.getAddress());
             return true;
 
         } catch (Exception e) {
-            Log.e("Ethereum Manager", "Error initializing with password: " + e.getMessage());
+            Log.e("Ethereum Manager", "Error initializing with secure credentials: " + e.getMessage());
             return false;
         }
     }

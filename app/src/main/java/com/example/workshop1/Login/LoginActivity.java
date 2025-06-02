@@ -20,6 +20,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.workshop1.Admin.AdminActivity;
 import com.example.workshop1.Ethereum.BlockchainConfig;
 import com.example.workshop1.Ethereum.EthereumManager;
+import com.example.workshop1.Ethereum.SecureConfig;
+import com.example.workshop1.Ethereum.SecurePrivateKeyManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
@@ -93,6 +95,25 @@ public class LoginActivity extends AppCompatActivity {
         pref = PreferenceManager.getDefaultSharedPreferences(this);
         remeberPass = (CheckBox) findViewById(R.id.remeber_pass);
 
+        // One-time setup: Store admin private key securely on first app launch
+        if (!SecurePrivateKeyManager.isPrivateKeyStored(this)) {
+            Log.d("Login", "First app launch - storing admin private key securely");
+            
+            String adminPrivateKey = SecureConfig.getAdminPrivateKey(this);
+            if (adminPrivateKey != null) {
+                boolean stored = SecurePrivateKeyManager.storePrivateKey(this, adminPrivateKey);
+                if (stored) {
+                    Log.d("Login", "✅ Admin private key stored securely using Android Keystore");
+                } else {
+                    Log.e("Login", "❌ Failed to store admin private key");
+                }
+            } else {
+                Log.e("Login", "❌ Could not load admin private key from config");
+            }
+        } else {
+            Log.d("Login", "Admin private key already stored securely");
+        }
+
     }
 
     @Override
@@ -143,8 +164,7 @@ public class LoginActivity extends AppCompatActivity {
                 if (remeberPass.isChecked()) {
                     editor.putBoolean("remember_password", true);
                     editor.putString("account", account);
-                    // editor.putString("password",password);
-                    editor.putString("password", "");  // 不要存储明文密码
+                    editor.putString("password",password);
                 } else {
                     editor.putBoolean("remember_password", false);
                     editor.clear();

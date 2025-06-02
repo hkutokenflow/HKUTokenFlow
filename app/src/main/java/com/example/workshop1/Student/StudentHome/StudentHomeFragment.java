@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.workshop1.Admin.RecentTransaction.RecentTransactionsFragment;
 import com.example.workshop1.Admin.Vendor.VendorItem;
+import com.example.workshop1.Ethereum.BlockchainConfig;
 import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
@@ -61,53 +62,33 @@ public class StudentHomeFragment extends Fragment {
         // ---------- wallet balance ----------
         studentWalletText = root.findViewById(R.id.student_wallet_balance);
         
-        if (thisUser != null) {
-            Log.d("Student Home", "User wallet address: " + thisUser.getWallet());
-            
-            new Thread(() -> {
-                try {
-                    BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
-                    requireActivity().runOnUiThread(() -> {
-                        String displayBalance = currentBalance + " HKUT";
-                        studentWalletText.setText(displayBalance);
-                    });
-                } catch (Exception e) {
-                    Log.e("Student Home", "Error getting balance: " + e.getMessage());
-                    requireActivity().runOnUiThread(() -> {
-                        studentWalletText.setText("Error loading balance");
-                    });
-                }
-            }).start();
-        } else {
-            studentWalletText.setText("Balance not available");
-        }
+        // Initialize in background thread to avoid OOM
+        new Thread(() -> {
+            try {
+                boolean initialized = ethereumManager.initializeSecurely();
+                
+                requireActivity().runOnUiThread(() -> {
+                    if (initialized && thisUser != null) {
+                        loadBlockchainData(thisUser);
+                    } else {
+                        Log.e("StudentHome", "Failed to initialize EthereumManager");
+                        studentWalletText.setText("Blockchain unavailable");
+                        loadSQLiteTransactions(thisUser);
+                    }
+                });
+                
+            } catch (OutOfMemoryError e) {
+                Log.e("StudentHome", "OutOfMemoryError during initialization: " + e.getMessage());
+                requireActivity().runOnUiThread(() -> {
+                    studentWalletText.setText("Blockchain unavailable");
+                    loadSQLiteTransactions(thisUser);
+                });
+            }
+        }).start();
 
         // ---------- transaction table ----------
         transactionsTable = root.findViewById(R.id.recent_transactions_table);
         searchEditText = root.findViewById(R.id.transaction_search);
-
-        // Load blockchain transaction records
-        if (thisUser != null && thisUser.getWallet() != null) {
-            new Thread(() -> {
-                try {
-                    List<EthereumManager.BlockchainTransaction> transactions = ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
-                    requireActivity().runOnUiThread(() -> {
-                        allTransactions.clear();
-                        for (EthereumManager.BlockchainTransaction tx : transactions) {
-                            allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
-                        }
-                        displayTransactions(allTransactions);
-                    });
-                } catch (Exception e) {
-                    Log.e("StudentHome", "Error loading blockchain transactions: " + e.getMessage());
-                    requireActivity().runOnUiThread(() -> {
-                        loadSQLiteTransactions(thisUser);  // Fallback to SQLite if error
-                    });
-                }
-            }).start();
-        } else {
-            loadSQLiteTransactions(thisUser);
-        }
 
         // setupDummyData(); // SQLite
         displayTransactions(allTransactions);
@@ -124,6 +105,49 @@ public class StudentHomeFragment extends Fragment {
         });
 
         return root;
+    }
+
+    private void loadBlockchainData(User thisUser) {
+        if (thisUser == null || thisUser.getWallet() == null) {
+            loadSQLiteTransactions(thisUser);
+            return;
+        }
+
+        // Load wallet balance
+        new Thread(() -> {
+            try {
+                BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+                requireActivity().runOnUiThread(() -> {
+                    String displayBalance = currentBalance + " HKUT";
+                    studentWalletText.setText(displayBalance);
+                });
+            } catch (Exception e) {
+                Log.e("Student Home", "Error getting balance: " + e.getMessage());
+                requireActivity().runOnUiThread(() -> {
+                    studentWalletText.setText("Error loading balance");
+                });
+            }
+        }).start();
+
+        // Load transaction history
+        new Thread(() -> {
+            try {
+                List<EthereumManager.BlockchainTransaction> transactions = 
+                    ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+                requireActivity().runOnUiThread(() -> {
+                    allTransactions.clear();
+                    for (EthereumManager.BlockchainTransaction tx : transactions) {
+                        allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
+                    }
+                    displayTransactions(allTransactions);
+                });
+            } catch (Exception e) {
+                Log.e("StudentHome", "Error loading blockchain transactions: " + e.getMessage());
+                requireActivity().runOnUiThread(() -> {
+                    loadSQLiteTransactions(thisUser);
+                });
+            }
+        }).start();
     }
 
     @Override

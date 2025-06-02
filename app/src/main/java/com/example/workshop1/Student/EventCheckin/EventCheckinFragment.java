@@ -43,6 +43,7 @@ public class EventCheckinFragment extends Fragment {
     private Mysqliteopenhelper mysqliteopenhelper;
     private EthereumManager ethereumManager;
     private ProgressDialog progressDialog;
+    private boolean initialized = false;
 
     @Nullable
     @Override
@@ -56,14 +57,26 @@ public class EventCheckinFragment extends Fragment {
         eventList = new ArrayList<>();
 
         ethereumManager = new EthereumManager(getContext());
-
-        // Initialize with admin credentials
-        // TODO: In production, get password securely from Android Keystore or user input
-        boolean initialized = ethereumManager.initializeWithPassword(BlockchainConfig.TEMP_ADMIN_PASSWORD);
-        if (!initialized) {
-            Log.e("EventCheckin", "Failed to initialize EthereumManager with admin credentials");
-            Toast.makeText(getContext(), "Blockchain initialization failed. Please contact admin.", Toast.LENGTH_LONG).show();
-        }
+        
+        // Initialize in background thread to avoid OOM
+        new Thread(() -> {
+            try {
+                boolean success = ethereumManager.initializeSecurely();
+                initialized = success; 
+                
+                if (!success) {
+                    Log.e("EventCheckin", "Failed to initialize EthereumManager");
+                    requireActivity().runOnUiThread(() -> {
+                        Toast.makeText(getContext(), 
+                            "Blockchain initialization failed. Tokens will not be minted.", 
+                            Toast.LENGTH_LONG).show();
+                    });
+                }
+            } catch (OutOfMemoryError e) {
+                Log.e("EventCheckin", "OutOfMemoryError during initialization: " + e.getMessage());
+                initialized = false;
+            }
+        }).start();
 
         //------------------------Event List----------------------------------
         mysqliteopenhelper = new Mysqliteopenhelper(requireContext());
@@ -153,6 +166,18 @@ public class EventCheckinFragment extends Fragment {
                                 Log.d("EventCheckin", "Starting token minting...");
                                 Log.d("EventCheckin", "Student wallet: " + studentWalletAddress);
                                 Log.d("EventCheckin", "Tokens to mint: " + reward);
+
+                                // Check if singleton is properly initialized
+                                if (!initialized) {
+                                    Log.e("EventCheckin", "EthereumManager singleton not initialized");
+                                    requireActivity().runOnUiThread(() -> {
+                                        dismissMintingProgress();
+                                        Toast.makeText(getContext(), 
+                                            "Blockchain not ready. Please try again.", 
+                                            Toast.LENGTH_LONG).show();
+                                    });
+                                    return;
+                                }
                                 
                                 // Mint tokens to student's wallet
                                 ethereumManager.mintTokens(studentWalletAddress, BigInteger.valueOf(reward));
