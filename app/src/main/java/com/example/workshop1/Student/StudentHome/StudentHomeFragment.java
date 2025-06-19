@@ -67,15 +67,17 @@ public class StudentHomeFragment extends Fragment {
             try {
                 boolean initialized = ethereumManager.initializeSecurely();
                 
-                requireActivity().runOnUiThread(() -> {
-                    if (initialized && thisUser != null) {
-                        loadBlockchainData(thisUser);
-                    } else {
-                        Log.e("StudentHome", "Failed to initialize EthereumManager");
+                if (initialized && thisUser != null) {
+                    Log.d("StudentHome", "Initialization successful, loading blockchain data...");
+                    loadBlockchainData(thisUser);
+                    
+                } else {
+                    Log.e("StudentHome", "Failed to initialize EthereumManager");
+                    requireActivity().runOnUiThread(() -> {
                         studentWalletText.setText("Blockchain unavailable");
                         loadSQLiteTransactions(thisUser);
-                    }
-                });
+                    });
+                }
                 
             } catch (OutOfMemoryError e) {
                 Log.e("StudentHome", "OutOfMemoryError during initialization: " + e.getMessage());
@@ -93,7 +95,7 @@ public class StudentHomeFragment extends Fragment {
         // setupDummyData(); // SQLite
         displayTransactions(allTransactions);
 
-        // 搜索功能
+        // Search function
         searchEditText.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             @Override public void afterTextChanged(Editable s) { }
@@ -109,45 +111,69 @@ public class StudentHomeFragment extends Fragment {
 
     private void loadBlockchainData(User thisUser) {
         if (thisUser == null || thisUser.getWallet() == null) {
+            Log.e("StudentHome", "No user data");
             loadSQLiteTransactions(thisUser);
             return;
         }
 
         // Load wallet balance
-        new Thread(() -> {
-            try {
-                BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+        try {
+            Log.d("StudentHome", "=== LOADING BLOCKCHAIN DATA ===");
+            Log.d("StudentHome", "Current user: " + thisUser.getUsername());
+            Log.d("StudentHome", "Current wallet address: " + thisUser.getWallet());
+            Log.d("StudentHome", "User type: " + thisUser.getType());
+            
+            if (!ethereumManager.isContractWorking()) {
+                Log.e("StudentHome", "Contract is not working, falling back to SQLite");
                 requireActivity().runOnUiThread(() -> {
-                    String displayBalance = currentBalance + " HKUT";
-                    studentWalletText.setText(displayBalance);
-                });
-            } catch (Exception e) {
-                Log.e("Student Home", "Error getting balance: " + e.getMessage());
-                requireActivity().runOnUiThread(() -> {
-                    studentWalletText.setText("Error loading balance");
-                });
-            }
-        }).start();
-
-        // Load transaction history
-        new Thread(() -> {
-            try {
-                List<EthereumManager.BlockchainTransaction> transactions = 
-                    ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
-                requireActivity().runOnUiThread(() -> {
-                    allTransactions.clear();
-                    for (EthereumManager.BlockchainTransaction tx : transactions) {
-                        allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
-                    }
-                    displayTransactions(allTransactions);
-                });
-            } catch (Exception e) {
-                Log.e("StudentHome", "Error loading blockchain transactions: " + e.getMessage());
-                requireActivity().runOnUiThread(() -> {
+                    studentWalletText.setText("Blockchain unavailable");
                     loadSQLiteTransactions(thisUser);
                 });
+                return;
             }
-        }).start();
+
+            BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+            Log.d("StudentHome", "Balance for " + thisUser.getWallet() + ": " + currentBalance);
+            
+            requireActivity().runOnUiThread(() -> {
+                String displayBalance = currentBalance + " HKUT";
+                studentWalletText.setText(displayBalance);
+            });
+            
+            Log.d("StudentHome", "> Balance loaded: " + currentBalance);
+
+            ethereumManager.checkContractState();
+    
+        } catch (Exception e) {
+            Log.e("StudentHome", "Error getting balance: " + e.getMessage());
+            requireActivity().runOnUiThread(() -> {
+                studentWalletText.setText("Error loading balance");
+            });
+        }
+
+        // Load transaction history
+        try {
+            Log.d("StudentHome", "Loading transaction history...");
+            List<EthereumManager.BlockchainTransaction> transactions = 
+                ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+            
+            // Update UI from background thread
+            requireActivity().runOnUiThread(() -> {
+                allTransactions.clear();
+                for (EthereumManager.BlockchainTransaction tx : transactions) {
+                    allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
+                }
+                displayTransactions(allTransactions);
+            });
+            
+            Log.d("StudentHome", "> Transactions loaded: " + transactions.size() + " items");
+    
+        } catch (Exception e) {
+            Log.e("StudentHome", "Error loading blockchain transactions: " + e.getMessage());
+            requireActivity().runOnUiThread(() -> {
+                loadSQLiteTransactions(thisUser);
+            });
+        }
     }
 
     @Override
@@ -157,15 +183,49 @@ public class StudentHomeFragment extends Fragment {
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
         if (thisUser != null && ethereumManager != null) {
             
+            if (thisUser != null) {
+                Log.d("StudentHome", "onResume - User: " + thisUser.getUsername());
+                Log.d("StudentHome", "onResume - Wallet: " + thisUser.getWallet());
+            } else {
+                Log.e("StudentHome", "onResume - User is NULL!");
+            }
+
             new Thread(() -> {
                 try {
+                    // Wait for initialization to complete
+                    int maxWaitTime = 5000; // Wait up to 5 seconds
+                    int checkInterval = 100; // Check every 100ms
+                    int totalWaited = 0;
+                    while (!ethereumManager.isInitialized() && totalWaited < maxWaitTime) {
+                        Thread.sleep(checkInterval);
+                        totalWaited += checkInterval;
+                    }
+                    if (!ethereumManager.isInitialized()) {
+                        Log.w("StudentHome", "EthereumManager still not initialized after " + maxWaitTime + "ms, skipping balance refresh");
+                        return;
+                    }
+
+                    // Refresh balance
                     BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
                     requireActivity().runOnUiThread(() -> {
                         String displayBalance = currentBalance + " HKUT";
                         studentWalletText.setText(displayBalance);
                     });
+
+                    // Refresh transaction history
+                    List<EthereumManager.BlockchainTransaction> transactions =
+                            ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+
+                    requireActivity().runOnUiThread(() -> {
+                        allTransactions.clear();
+                        for (EthereumManager.BlockchainTransaction tx : transactions) {
+                            allTransactions.add(new Transaction(tx.timestamp, tx.description, tx.amount));
+                        }
+                        displayTransactions(allTransactions);
+                    });
+
                 } catch (Exception e) {
-                    Log.e("Student Home", "Error refreshing balance: " + e.getMessage());
+                    Log.e("StudentHome", "Error refreshing balance: " + e.getMessage());
                     requireActivity().runOnUiThread(() -> {
                         studentWalletText.setText("Error loading balance");
                     });

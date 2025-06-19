@@ -32,8 +32,6 @@ import java.math.BigDecimal;
 public class EthereumManager {
     private static final String BLOCKCHAIN_URL = BlockchainConfig.BLOCKCHAIN_URL;
     private static final String CONTRACT_ADDRESS = BlockchainConfig.TOKEN_CONTRACT_ADDRESS;
-    //private static final String PRIVATE_KEY = BlockchainConfig.ADMIN_PRIVATE_KEY;
-    //private static final Credentials credentials = Credentials.create(PRIVATE_KEY);
     private static final long CHAIN_ID = 1234;
 
     private final Web3j web3j;
@@ -57,32 +55,68 @@ public class EthereumManager {
         web3j = Web3j.build(httpService);
         admin = Admin.build(httpService); 
 
-        gasProvider = new DefaultGasProvider();
+        gasProvider = new ContractGasProvider() {
+            @Override
+            public BigInteger getGasPrice(String contractFunc) {
+                return BigInteger.valueOf(20_000_000_000L); // 20 Gwei
+            }
+    
+            @Override
+            public BigInteger getGasPrice() {
+                return BigInteger.valueOf(20_000_000_000L); // 20 Gwei
+            }
+    
+            @Override
+            public BigInteger getGasLimit(String contractFunc) {
+                // ✅ MUCH LOWER gas limit for minting
+                if ("mintTokens".equals(contractFunc)) {
+                    return BigInteger.valueOf(300_000L); // 300k gas for minting
+                }
+                return BigInteger.valueOf(500_000L); // 500k gas for other functions
+            }
+    
+            @Override
+            public BigInteger getGasLimit() {
+                return BigInteger.valueOf(500_000L); // Default 500k gas
+            }
+        };
+        
         Log.d("Ethereum Manager", "EthereumManager created - call initializeSecurely() before use");
     }
 
     // Initialize EthereumManager with secure Android Keystore credentials
     public boolean initializeSecurely() { 
         try {
+            Log.d("Ethereum Manager", "--- Starting Ethereum Manager initialization ---");
+            
             // Load credentials from Android Keystore (faster than SCrypt, prevent out of memory error)
+            Log.d("Ethereum Manager", "Loading secure credentials...");
             adminCredentials = SecurePrivateKeyManager.loadSecureCredentials(context);
             if (adminCredentials == null) {
                 Log.e("Ethereum Manager", "Failed to load secure credentials");
                 return false;
             }
+            Log.d("Ethereum Manager", "> Credentials loaded successfully");
 
             // Create transaction manager with loaded credentials
+            Log.d("Ethereum Manager", "Creating transaction manager...");
             transactionManager = new RawTransactionManager(web3j, adminCredentials, CHAIN_ID);
+            Log.d("Ethereum Manager", "> Transaction manager created");
 
             // Load smart contract with admin credentials
+            Log.d("Ethereum Manager", "Loading smart contract at: " + CONTRACT_ADDRESS);
             contract = Sc_test.load(
                     CONTRACT_ADDRESS,
                     web3j,
                     transactionManager,
                     gasProvider
             );
+            Log.d("Ethereum Manager", "> Smart contract loaded");
 
+            Log.d("Ethereum Manager", "Loading token decimals...");
             loadTokenDecimals();
+            Log.d("Ethereum Manager", "> Token decimals loaded");
+
             isInitialized = true;
             Log.d("Ethereum Manager", "Successfully initialized with secure credentials");
             Log.d("Ethereum Manager", "Admin address: " + adminCredentials.getAddress());
@@ -103,6 +137,7 @@ public class EthereumManager {
 
     // Mint tokens to wallet address
     public void mintTokens(String toAddress, BigInteger amount) {
+        Log.d("Ethereum Manager", "=== mintTokens() called ===");
         if (!isInitialized()) {
             Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeWithPassword() first.");
             throw new IllegalStateException("EthereumManager not initialized. Call initializeWithPassword() first.");
@@ -147,15 +182,101 @@ public class EthereumManager {
         }
     }
 
+    // Transfer tokens (redeem)
+    public void transferTokens(String fromAddress, String toAddress, BigInteger amount) {
+        Log.d("Ethereum Manager", "=== transferTokens() called ===");
+        Log.d("Ethereum Manager", "From: " + fromAddress);
+        Log.d("Ethereum Manager", "To: " + toAddress);
+        Log.d("Ethereum Manager", "Amount: " + amount + " tokens");
+
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeSecurely() first.");
+            throw new IllegalStateException("EthereumManager not initialized. Call initializeSecurely() first.");
+        }
+
+        boolean manualMiningStart = false;
+        
+        try {                
+            long startTime = System.currentTimeMillis();
+            BigInteger wei = convertTokensToWei(amount);
+
+            if (!isMiningActive()) {
+                boolean startSuccess = GethMiningController.startMining(4).get();
+                if (!startSuccess) {
+                    Log.e("Ethereum Manager", "Failed to start mining");
+                    return;
+                }
+                manualMiningStart = true;
+                waitForMiningToStart();
+            } else {
+                Log.d("Ethereum Manager", "Mining already active, proceeding with transaction");
+            }
+
+            TransactionReceipt receipt = contract.redeemTokens(fromAddress, toAddress, wei).send();
+            long endTime = System.currentTimeMillis();
+            Log.d("Ethereum Manager", "Tokens transferred successfully: " + receipt.getTransactionHash());
+            Log.d("Ethereum Manager", "From: " + fromAddress + " To: " + toAddress + " Amount: " + amount);
+            Log.d("Ethereum Manager", "Transaction mined in " + (endTime - startTime) + "ms");
+            Log.d("Ethereum Manager", "Transaction hash: " + receipt.getTransactionHash());
+            Log.d("Ethereum Manager", "Block number: " + receipt.getBlockNumber());
+            Log.d("Ethereum Manager", "Gas used: " + receipt.getGasUsed());
+
+        } catch (Exception e) {
+            Log.e("Ethereum Manager", "Error transferring tokens: " + e.getMessage());
+            throw new RuntimeException("Failed to transfer tokens: " + e.getMessage(), e);
+        } finally {
+            if (manualMiningStart) {
+                try {
+                    GethMiningController.stopMining();
+                    Log.d("Ethereum Manager", "Stopped mining (started by this transaction)");
+                } catch (Exception e) {
+                    Log.e("Ethereum Manager", "Error stopping manual mining: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    // ------------------------ Get wallet data ------------------------
+
     // Get wallet balance
     public BigInteger getBalance(String address) {
+        Log.d("Ethereum Manager", "=== getBalance() called for address: " + address + "===");
+        Log.d("Ethereum Manager", "Current initialization status:");
+        Log.d("Ethereum Manager", "  isInitialized flag: " + isInitialized);
+        Log.d("Ethereum Manager", "  adminCredentials: " + (adminCredentials != null ? "OK" : "NULL"));
+        Log.d("Ethereum Manager", "  transactionManager: " + (transactionManager != null ? "OK" : "NULL"));
+        Log.d("Ethereum Manager", "  contract: " + (contract != null ? "OK" : "NULL"));
+        Log.d("Ethereum Manager", "  EthereumManager instance: " + this.hashCode());
+        
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeSecurely() first.");
+            return BigInteger.ZERO;
+        }
+
+        if (address == null || address.isEmpty()) {
+            Log.e("Ethereum Manager", "Address is null or empty");
+            return BigInteger.ZERO;
+        }
+        
+        if (!address.startsWith("0x") || address.length() != 42) {
+            Log.e("Ethereum Manager", "Invalid address format: " + address);
+            return BigInteger.ZERO;
+        }
+
         try {
             BigInteger tokenUnits = contract.balanceOf(address).send();
+            if (tokenUnits == null) {
+                Log.e("Ethereum Manager", "Contract returned null balance");
+                return BigInteger.ZERO;
+            }
+
             BigInteger tokenBalance = convertWeiToTokens(tokenUnits);
             return tokenBalance;
             
         } catch (Exception e) {
             Log.e("Ethereum Manager", "Error getting balance: " + e.getMessage());
+            Log.e("Ethereum Manager", "Exception type: " + e.getClass().getSimpleName());
+            Log.e("Ethereum Manager", "Exception details: ", e);
             return BigInteger.ZERO;
         }
     }
@@ -164,11 +285,16 @@ public class EthereumManager {
     public List<BlockchainTransaction> getWalletTransactionHistory(String walletAddress) {
         List<BlockchainTransaction> transactions = new ArrayList<>();
 
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeSecurely() first.");
+            return transactions;
+        }
+        
         Log.d("EthereumManager", "=== Starting getWalletTransactionHistory ===");
         Log.d("EthereumManager", "Wallet address: " + walletAddress);
         
         try {           
-            // Get all transfer events to this address (receiver = address, includes minting)
+            // ===== Get all transfer events to this address (receiver = address, includes minting) =====
             Log.d("EthereumManager", "--- Searching for Transfer events TO address ---");
             List<Sc_test.TransferEventResponse> transferToEvents = getTransferEventsTo(walletAddress);
             Log.d("EthereumManager", "Found " + transferToEvents.size() + " Transfer TO events");
@@ -182,7 +308,7 @@ public class EthereumManager {
 
                 String timestamp = getBlockTimestamp(event.log.getBlockNumber());
 
-                // minting (from zero address)
+                // ----- minting (from zero address) -----
                 if (event.from.equals("0x0000000000000000000000000000000000000000")) {
                     // Get event name from SQLite database
                     String eventName = getEventNameFromBlockchainData(walletAddress, event.value, timestamp);
@@ -199,19 +325,37 @@ public class EthereumManager {
                     );
                     transactions.add(tx);
                     Log.d("EthereumManager", "  - Added MINTING transaction: " + tx.description + " " + tx.amount);
+                
+                // ----- Regular transfers to address (vendors: tokens received) -----
                 } else {
-                    // Regular transfers to address
+                    String rewardName = getRewardNameFromTransfer(event.from, event.to, event.value, timestamp);
+                    String studentUsername = getStudentUsernameFromWallet(event.from);
+                    String description;
+                    if (rewardName != null) {
+                        description = rewardName;
+                        Log.d("EthereumManager", "  - reward redemption: " + rewardName + " by " + studentUsername);
+                    } else {
+                        description = "Transfer Received";
+                        Log.d("EthereumManager", "  - regular transfer from " + studentUsername);
+                    }
+                    
                     BlockchainTransaction tx = new BlockchainTransaction(
                         event.log.getBlockNumber(),
                         timestamp,
-                        "Transfer Received",
+                        description,
                         "+" + convertWeiToTokens(event.value).toString(),
-                        "TRANSFER_IN"
+                        "TRANSFER_IN",
+                        rewardName, 
+                        studentUsername, 
+                        event.from,
+                        event.to
                     );
+
                     transactions.add(tx);
                     Log.d("EthereumManager", "  - Added TRANSFER transaction: " + tx.description + " " + tx.amount);
                 }
             }
+            
 
             // Get all transfer events from this address (sender = address)
             Log.d("EthereumManager", "--- Searching for Transfer events FROM address ---");
@@ -226,10 +370,22 @@ public class EthereumManager {
                 Log.d("EthereumManager", "  - Value (wei): " + event.value);
 
                 String timestamp = getBlockTimestamp(event.log.getBlockNumber());
+
+                String rewardName = getRewardNameFromTransfer(walletAddress, event.to, event.value, timestamp);
+                String description;
+                if (rewardName != null) {
+                    description = "Redeemed: " + rewardName;
+                    Log.d("EthereumManager", "  - reward redemption: " + rewardName);
+                } else {
+                    // Regular transfer
+                    description = "Transfer";
+                    Log.d("EthereumManager", "  - regular transfer");
+                }
+
                 BlockchainTransaction tx = new BlockchainTransaction(
                     event.log.getBlockNumber(),
                     timestamp,
-                    "Transfer Sent",
+                    description,
                     "-" + convertWeiToTokens(event.value).toString(),
                     "TRANSFER_OUT"
                 );
@@ -389,12 +545,93 @@ public class EthereumManager {
         }
     }
 
+    private String getRewardNameFromTransfer(String fromAddress, String toAddress, BigInteger tokenAmount, String timestamp) {
+        try {
+            int studentId = mysqliteopenhelper.getUserIdFromWallet(fromAddress);
+            if (studentId == -999) {
+                Log.w("EthereumManager", "Could not find student for wallet: " + fromAddress);
+                return null;
+            }
+            int vendorId = mysqliteopenhelper.getUserIdFromWallet(toAddress);
+            if (vendorId == -999) {
+                Log.w("EthereumManager", "Could not find vendor for wallet: " + toAddress);
+                return null;
+            }
+
+            int amount = convertWeiToTokens(tokenAmount).intValue();
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
+            Date blockchainDate = sdf.parse(timestamp);
+
+            Cursor cursor = mysqliteopenhelper.getStudentRewards(studentId);
+            if (cursor != null) {
+                while (cursor.moveToNext()) {
+                    int rewardId = cursor.getInt(2);  // get reward id from student_rewards record
+                    Cursor rewardCursor = mysqliteopenhelper.getRewardFromId(rewardId);
+                    if (rewardCursor != null && rewardCursor.moveToFirst()) {
+                        int rewardValue = rewardCursor.getInt(3);
+                        int rewardVendorId = rewardCursor.getInt(4);
+                        if (rewardValue == amount && rewardVendorId == vendorId) {
+                            String rewardName = mysqliteopenhelper.getRewardName(rewardId);
+                            Log.d("EthereumManager", "Found matching reward: " + rewardName + " (amount: " + amount + ", vendor: " + vendorId + ")");
+                            rewardCursor.close();
+                            cursor.close();
+                            return rewardName;
+                        }
+                        rewardCursor.close();
+                    }
+                }
+                cursor.close();
+            }
+            Log.w("EthereumManager", "No matching SQLite reward found for amount " + amount + " from student " + studentId + " to vendor " + vendorId + " at " + timestamp);
+            return null;
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting reward name from transfer: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String getStudentUsernameFromWallet(String walletAddress) {
+        try {
+            int userId = mysqliteopenhelper.getUserIdFromWallet(walletAddress);
+            if (userId == -999) {
+                Log.w("EthereumManager", "Could not find user for wallet: " + walletAddress);
+                return "Unknown User";
+            }
+            
+            Cursor cursor = mysqliteopenhelper.getReadableDatabase().query(
+                "Users", 
+                new String[]{"username"}, 
+                "_id = ?", 
+                new String[]{String.valueOf(userId)}, 
+                null, null, null
+            );
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                String username = cursor.getString(0);
+                cursor.close();
+                return username;
+            }
+            if (cursor != null) {
+                cursor.close();
+            }
+            
+            return "Unknown User";
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting username from wallet: " + e.getMessage());
+            return "Unknown User";
+        }
+    }
+
     public static class BlockchainTransaction {
         public BigInteger blockNumber;
         public String timestamp;
         public String description;
         public String amount;
         public String type;
+        public String rewardName;      
+        public String studentUsername; 
+        public String fromAddress;     
+        public String toAddress; 
         
         public BlockchainTransaction(BigInteger blockNumber, String timestamp, String description, String amount, String type) {
             this.blockNumber = blockNumber;
@@ -402,6 +639,22 @@ public class EthereumManager {
             this.description = description;
             this.amount = amount;
             this.type = type;
+            this.rewardName = null;
+            this.studentUsername = null;
+            this.fromAddress = null;
+            this.toAddress = null;
+        }
+
+        public BlockchainTransaction(BigInteger blockNumber, String timestamp, String description, String amount, String type, String rewardName, String studentUsername, String fromAddress, String toAddress) {
+            this.blockNumber = blockNumber;
+            this.timestamp = timestamp;
+            this.description = description;
+            this.amount = amount;
+            this.type = type;
+            this.rewardName = rewardName;
+            this.studentUsername = studentUsername;
+            this.fromAddress = fromAddress;
+            this.toAddress = toAddress;
         }
     }
 
@@ -481,6 +734,12 @@ public class EthereumManager {
     // Get and cache token decimals (call this once during initialization)
     private void loadTokenDecimals() {
         try {
+            if (contract == null) {
+                Log.w("Ethereum Manager", "Contract is null, cannot load token decimals");
+                tokenDecimals = BigInteger.valueOf(18); // Default to 18 decimals
+                return;
+            }
+            
             tokenDecimals = contract.decimals().send();
             Log.d("Ethereum Manager", "Token decimals loaded: " + tokenDecimals);
         } catch (Exception e) {
@@ -531,6 +790,87 @@ public class EthereumManager {
             Log.e("Ethereum Manager", "Error getting chain ID: " + e.getMessage());
         }
     }
+
+    public boolean testNetworkConnection() {
+        try {
+            Log.d("Ethereum Manager", "Testing network connection to: " + BLOCKCHAIN_URL);
+            
+            // Test basic connectivity
+            BigInteger blockNumber = web3j.ethBlockNumber().send().getBlockNumber();
+            Log.d("Ethereum Manager", "Network connected. Latest block: " + blockNumber);
+            
+            // Test if we can get chain ID
+            BigInteger chainId = web3j.ethChainId().send().getChainId();
+            Log.d("Ethereum Manager", "Chain ID: " + chainId);
+            
+            return true;
+        } catch (Exception e) {
+            Log.e("Ethereum Manager", "Network connection failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean isContractWorking() {
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "Cannot check contract - not initialized");
+            return false;
+        }
+
+        if (!testNetworkConnection()) {
+            Log.e("Ethereum Manager", "Network connection failed");
+            return false;
+        }
+        
+        try {
+            String name = contract.name().send();
+            Log.d("Ethereum Manager", "Contract name: " + name);
+            
+            BigInteger decimals = contract.decimals().send();
+            Log.d("Ethereum Manager", "Contract decimals: " + decimals);
+            
+            BigInteger totalSupply = contract.totalSupply().send();
+            Log.d("Ethereum Manager", "Contract total supply: " + totalSupply);
+            
+            return true;
+        } catch (Exception e) {
+            Log.e("Ethereum Manager", "Contract is not working: " + e.getMessage());
+            Log.e("Ethereum Manager", "Exception type: " + e.getClass().getSimpleName());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    public void checkContractState() {
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "Cannot check contract state - not initialized");
+            return;
+        }
+        
+        new Thread(() -> {
+            try {
+                Log.d("Ethereum Manager", "=== Checking Contract State ===");
+                
+                // Check total supply
+                BigInteger totalSupply = contract.totalSupply().send();
+                Log.d("Ethereum Manager", "Total token supply: " + convertWeiToTokens(totalSupply) + " tokens");
+                
+                // Check contract name and symbol
+                String name = contract.name().send();
+                String symbol = contract.symbol().send();
+                Log.d("Ethereum Manager", "Token name: " + name);
+                Log.d("Ethereum Manager", "Token symbol: " + symbol);
+                
+                // Check admin balance
+                BigInteger adminBalance = getBalance(adminCredentials.getAddress());
+                Log.d("Ethereum Manager", "Admin balance: " + adminBalance + " " + symbol);
+                
+            } catch (Exception e) {
+                Log.e("Ethereum Manager", "Error checking contract state: " + e.getMessage());
+            }
+        }).start();
+    }
+
 }
 
 

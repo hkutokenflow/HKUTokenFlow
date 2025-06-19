@@ -15,7 +15,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     private static final String DBNAME = "Mydb";
 
     public Mysqliteopenhelper(@Nullable Context context) {
-        super(context, DBNAME, null, 10);
+        super(context, DBNAME, null, 13);
     }
 
     @Override
@@ -198,6 +198,17 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
             return userId;
         }
         return -999; // Not found
+    }
+
+    public String getUserWallet(int userId) {
+        SQLiteDatabase db1 = getWritableDatabase();
+        Cursor cursor = db1.query("Users", new String[]{"wallet"}, "_id = ?", new String[]{String.valueOf(userId)}, null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            String wallet = cursor.getString(0);
+            cursor.close();
+            return wallet;
+        }
+        return null; // Not found
     }
 
     // ------------------ VENDOR ------------------

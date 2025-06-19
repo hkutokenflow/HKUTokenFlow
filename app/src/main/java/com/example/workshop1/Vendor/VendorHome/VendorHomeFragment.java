@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +20,7 @@ import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
 import com.example.workshop1.Admin.RecentTransaction.RecentTransactionsFragment;
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
@@ -30,6 +32,7 @@ import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,6 +48,7 @@ public class VendorHomeFragment extends Fragment {
     private EditText searchEditText;
     private List<Transaction> allTransactions = new ArrayList<>();
     private Mysqliteopenhelper mysqliteopenhelper;
+    private EthereumManager ethereumManager;
 
 
     @Override
@@ -53,10 +57,36 @@ public class VendorHomeFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_vendor_home, container, false);
 
         mysqliteopenhelper = new Mysqliteopenhelper(getContext());
+        ethereumManager = new EthereumManager(getContext());
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
 
-        // wallet balance
+        // ---------- wallet balance ----------
         vendorWalletText = root.findViewById(R.id.vendor_wallet_balance);
+
+        new Thread(() -> {
+            try {
+                boolean initialized = ethereumManager.initializeSecurely();
+                if (initialized && thisUser != null) {
+                    Log.d("VendorHome", "Initialization successful, loading blockchain data");
+                    loadBlockchainData(thisUser);
+                } else {
+                    Log.e("VendorHome", "Failed to initialize EthereumManager");
+                    requireActivity().runOnUiThread(() -> {
+                        vendorWalletText.setText("Blockchain unavailable");
+                        loadSQLiteTransactions(thisUser);
+                    });
+                }
+            } catch (OutOfMemoryError e) {
+                Log.e("VendorHome", "OutOfMemoryError during initialization: " + e.getMessage());
+                requireActivity().runOnUiThread(() -> {
+                    vendorWalletText.setText("Blockchain unavailable");
+                    loadSQLiteTransactions(thisUser);
+                });
+            }
+        }).start();
+
+
+
         if (thisUser != null) {
             int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
             int currentBalance = mysqliteopenhelper.getUserBalance(uid);
@@ -118,6 +148,72 @@ public class VendorHomeFragment extends Fragment {
         return root;
     }
 
+    private void loadBlockchainData(User thisUser) {
+        if (thisUser == null || thisUser.getWallet() == null) {
+            Log.e("VendorHome", "No user data");
+            loadSQLiteTransactions(thisUser);
+            return;
+        }
+        // Load wallet balance
+        try {
+            Log.d("VendorHome", "=== LOADING BLOCKCHAIN DATA ===");
+            Log.d("VendorHome", "Current user: " + thisUser.getUsername());
+            Log.d("VendorHome", "Current wallet address: " + thisUser.getWallet());
+            Log.d("VendorHome", "User type: " + thisUser.getType());
+
+            if (!ethereumManager.isContractWorking()) {
+                Log.e("VendorHome", "Contract is not working, falling back to SQLite");
+                requireActivity().runOnUiThread(() -> {
+                    vendorWalletText.setText("Blockchain unavailable");
+                    loadSQLiteTransactions(thisUser);
+                });
+                return;
+            }
+
+            BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+            Log.d("VendorHome", "Balance for " + thisUser.getWallet() + ": " + currentBalance);
+            requireActivity().runOnUiThread(() -> {
+                String displayBalance = currentBalance + " HKUT";
+                vendorWalletText.setText(displayBalance);
+            });
+            Log.d("VendorHome", "> Balance loaded: " + currentBalance);
+            ethereumManager.checkContractState();
+
+        } catch (Exception e) {
+            Log.e("VendorHome", "Error getting balance: " + e.getMessage());
+            requireActivity().runOnUiThread(() -> {
+                vendorWalletText.setText("Error loading balance");
+            });
+        }
+
+        // Load transaction history
+        try {
+            Log.d("VendorHome", "Loading transaction history...");
+            List<EthereumManager.BlockchainTransaction> transactions =
+                    ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+
+            requireActivity().runOnUiThread(() -> {
+                allTransactions.clear();
+                for (EthereumManager.BlockchainTransaction tx : transactions) {
+                    if (tx.type.equals("TRANSFER_IN") || tx.type.equals("MINT")) {
+                        String rewardName = tx.rewardName != null ? tx.rewardName : tx.description;
+                        String studentUsername = tx.studentUsername != null ? tx.studentUsername : "Student";
+                        allTransactions.add(new Transaction(tx.timestamp, rewardName, studentUsername, tx.amount));
+                    }
+                }
+                displayTransactions(allTransactions);
+            });
+
+            Log.d("VendorHome", "> Transactions loaded: " + transactions.size() + " items");
+        } catch (Exception e) {
+            Log.e("VendorHome", "Error loading blockchain transactions: " + e.getMessage());
+            requireActivity().runOnUiThread(() -> {
+                loadSQLiteTransactions(thisUser);
+            });
+        }
+
+    }
+
     //-----------------------------------barchart--------------------------------
     // 设置 Transactions 的柱形图
     private void setupTransactionsChart() {
@@ -145,10 +241,54 @@ public class VendorHomeFragment extends Fragment {
     public void onResume() {
         super.onResume();
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
-        if (thisUser != null) {
-            int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
-            int currentBalance = mysqliteopenhelper.getUserBalance(uid);
-            vendorWalletText.setText(String.valueOf(currentBalance));
+        if (thisUser != null && ethereumManager != null) {
+            Log.d("VendorHome", "onResume - User: " + thisUser.getUsername());
+            Log.d("VendorHome", "onResume - Wallet: " + thisUser.getWallet());
+
+            new Thread(() -> {
+                try {
+                    int maxWaitTime = 5000; // Wait up to 5 seconds
+                    int checkInterval = 100; // Check every 100ms
+                    int totalWaited = 0;
+                    while (!ethereumManager.isInitialized() && totalWaited < maxWaitTime) {
+                        Thread.sleep(checkInterval);
+                        totalWaited += checkInterval;
+                    }
+                    if (!ethereumManager.isInitialized()) {
+                        Log.w("VendorHome", "EthereumManager still not initialized after " + maxWaitTime + "ms, skipping balance refresh");
+                        return;
+                    }
+
+                    // Refresh balance
+                    BigInteger currentBalance = ethereumManager.getBalance(thisUser.getWallet());
+                    requireActivity().runOnUiThread(() -> {
+                        String displayBalance = currentBalance + " HKUT";
+                        vendorWalletText.setText(displayBalance);
+                    });
+
+                    // Refresh transaction history
+                    List<EthereumManager.BlockchainTransaction> transactions =
+                            ethereumManager.getWalletTransactionHistory(thisUser.getWallet());
+
+                    requireActivity().runOnUiThread(() -> {
+                        allTransactions.clear();
+                        for (EthereumManager.BlockchainTransaction tx : transactions) {
+                            if (tx.type.equals("TRANSFER_IN") || tx.type.equals("MINT")) {
+                                String rewardName = tx.rewardName != null ? tx.rewardName : tx.description;
+                                String studentUsername = tx.studentUsername != null ? tx.studentUsername : "Student";
+                                allTransactions.add(new Transaction(tx.timestamp, rewardName, studentUsername, tx.amount));
+                            }
+                        }
+                        displayTransactions(allTransactions);
+                    });
+
+                } catch (Exception e) {
+                    Log.e("VendorHome", "Error refreshing balance: " + e.getMessage());
+                    requireActivity().runOnUiThread(() -> {
+                        vendorWalletText.setText("Error loading balance");
+                    });
+                }
+            }).start();
         }
     }
 
@@ -237,6 +377,28 @@ public class VendorHomeFragment extends Fragment {
             }
         }
         displayTransactions(filtered);
+    }
+
+    private void loadSQLiteTransactions(User thisUser) {
+        if (thisUser == null) {
+            Log.e("VendorHome", "User is null, cannot load SQLite transactions");
+            return;
+        }
+
+        int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
+        Cursor cursor = mysqliteopenhelper.getUserTrans(uid);
+        if (cursor.getCount() != 0) {
+            while (cursor.moveToNext()) {
+                String datetime = cursor.getString(1);
+                int src = cursor.getInt(2);
+                int amt = cursor.getInt(4);
+                int rid = cursor.getInt(5);
+                String reward = mysqliteopenhelper.getRewardName(rid);
+                allTransactions.add(new Transaction(datetime, reward, String.valueOf(src), String.valueOf(amt)));
+            }
+        }
+        cursor.close();
+        displayTransactions(allTransactions);
     }
 
     // 内部类：交易模型

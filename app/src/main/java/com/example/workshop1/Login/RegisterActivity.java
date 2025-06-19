@@ -166,13 +166,37 @@ public class RegisterActivity extends AppCompatActivity {
                     User user = new User(username, encryptedPassword, "", "student", 0, walletAddress);
                     long res = mysqliteopenhelper.addUser(user);
                     if (res != -1) {
-                        ethereumManager.assignRole(walletAddress, "STUDENT");
-                        
-                        Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
-                        Log.d("Registration", "Student registered with wallet: " + walletAddress);
-
-                        Intent intent = new Intent(this, LoginActivity.class);
-                        startActivity(intent);
+                        new Thread(() -> {
+                            try {
+                                boolean initialized = ethereumManager.initializeSecurely();
+                                if (initialized) {
+                                    ethereumManager.assignRole(walletAddress, "STUDENT");
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show();
+                                        Log.d("Registration", "Student registered with wallet: " + walletAddress);
+    
+                                        Intent intent = new Intent(this, LoginActivity.class);
+                                        startActivity(intent);
+                                    });
+                                } else {
+                                    runOnUiThread(() -> {
+                                        Toast.makeText(this, "Registration successful but role assignment failed", Toast.LENGTH_SHORT).show();
+                                        Log.w("Registration", "Failed to initialize EthereumManager for role assignment");
+                                        
+                                        Intent intent = new Intent(this, LoginActivity.class);
+                                        startActivity(intent);
+                                    });
+                                }
+                            } catch (Exception e) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "Registration successful but role assignment failed", Toast.LENGTH_SHORT).show();
+                                    Log.e("Registration", "Error during role assignment: " + e.getMessage());
+                                    
+                                    Intent intent = new Intent(this, LoginActivity.class);
+                                    startActivity(intent);
+                                });
+                            }
+                        }).start();
                     } else {
                         Toast.makeText(this, "Registration failed", Toast.LENGTH_SHORT).show();
                     }

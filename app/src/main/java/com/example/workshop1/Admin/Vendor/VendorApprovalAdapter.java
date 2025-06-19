@@ -3,6 +3,7 @@ package com.example.workshop1.Admin.Vendor;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +16,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.example.workshop1.Ethereum.AccountManager;
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
@@ -27,12 +30,16 @@ public class VendorApprovalAdapter extends ArrayAdapter<VendorApprovalItem> {
     private Context context;
     private List<VendorApprovalItem> approvalList;
     private Mysqliteopenhelper mysqliteopenhelper;
+    private AccountManager accountManager;
+    private EthereumManager ethereumManager;
 
     public VendorApprovalAdapter(@NonNull Context context, List<VendorApprovalItem> list) {
         super(context, 0, list);
         this.context = context;
         this.approvalList = list;
         this.mysqliteopenhelper = new Mysqliteopenhelper(context);
+        this.accountManager = new AccountManager();
+        this.ethereumManager = new EthereumManager(context);
     }
 
     @NonNull
@@ -85,24 +92,64 @@ public class VendorApprovalAdapter extends ArrayAdapter<VendorApprovalItem> {
             builder.setMessage("Do you want to approve or refuse " + currentItem.getName() + "?");
 
             builder.setPositiveButton("Approve", (dialog, which) -> {
-                // 1. 更新 VendorApproval 表中的状态
-                mysqliteopenhelper.updateVendorApprovalStatus(currentItem.getUsername(), 1);
+                // Create vendor wallet
+                Toast.makeText(context, "Creating account...", Toast.LENGTH_SHORT).show();
+                new Thread(() -> {
+                    try {
+                        String walletAddress = accountManager.createGethAccount(currentItem.getPassword());
+                        if (walletAddress == null) {
+                            ((android.app.Activity) context).runOnUiThread(() -> {
+                                Toast.makeText(context, "Failed to create vendor wallet. Please try again.", Toast.LENGTH_LONG).show();
+                            });
+                            return;
+                        }
+                        Log.d("Registration", "Wallet created in geth keystore, address: " + walletAddress);
+                        verifyWalletCreation(walletAddress);
 
-                // 2. 添加到 Users 表，使用原始的密码
-                User user = new User(currentItem.getUsername(),
-                        currentItem.getPassword(),
-                        currentItem.getName(),
-                        "vendor");
-                long res = mysqliteopenhelper.addUser(user);
+                        // 更新 VendorApproval 表中的状态
+                        mysqliteopenhelper.updateVendorApprovalStatus(currentItem.getUsername(), 1);
 
-                if (res != -1) {
-                    // 3. 更新列表项状态
-                    currentItem.setApproved(1);
-                    notifyDataSetChanged();
-                    Toast.makeText(context, "Vendor approved successfully", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(context, "Failed to approve vendor", Toast.LENGTH_SHORT).show();
-                }
+                        // Add to SQL
+                        User user = new User(currentItem.getUsername(),
+                                currentItem.getPassword(),
+                                currentItem.getName(),
+                                "vendor",
+                                walletAddress);
+                        long res = mysqliteopenhelper.addUser(user);
+                        if (res != -1) {
+                            // Assign vendor role on blockchain
+                            try {
+                                boolean initialized = ethereumManager.initializeSecurely();
+                                if (initialized) {
+                                    ethereumManager.assignRole(walletAddress, "VENDOR");
+                                    Log.d("VendorApproval", "Vendor role assigned on blockchain: " + walletAddress);
+                                } else {
+                                    Log.e("VendorApproval", "Failed to initialize EthereumManager for role assignment");
+                                }
+                            } catch (Exception e) {
+                                Log.e("VendorApproval", "Error during role assignment: " + e.getMessage());
+                            }
+
+                            ((android.app.Activity) context).runOnUiThread(() -> {
+                                // 3. 更新列表项状态
+                                currentItem.setApproved(1);
+                                notifyDataSetChanged();
+                                Toast.makeText(context, "Vendor approved successfully, account created", Toast.LENGTH_SHORT).show();
+                            });
+
+                        } else {
+                            ((android.app.Activity) context).runOnUiThread(() -> {
+                                Toast.makeText(context, "Failed to create vendor account in database", Toast.LENGTH_LONG).show();
+                            });
+                        }
+
+                    } catch (Exception e) {
+                        Log.e("VendorApproval", "Error during vendor approval: " + e.getMessage());
+                        ((android.app.Activity) context).runOnUiThread(() -> {
+                            Toast.makeText(context, "Error creating vendor account", Toast.LENGTH_LONG).show();
+                        });
+                    }
+                }).start();
             });
 
             builder.setNegativeButton("Refuse", (dialog, which) -> {
@@ -125,4 +172,20 @@ public class VendorApprovalAdapter extends ArrayAdapter<VendorApprovalItem> {
 
         return convertView;
     }
+
+    private void verifyWalletCreation(String walletAddress) {
+        try {
+            // Verify if wallet exists in Geth
+            List<String> accounts = accountManager.getGethAccounts();
+            boolean found = accounts.contains(walletAddress.toLowerCase());
+            if (found) {
+                Log.d("VendorApproval", "Vendor wallet verification successful: " + walletAddress);
+            } else {
+                Log.w("VendorApproval", "Vendor wallet not found in geth accounts");
+            }
+        } catch (Exception e) {
+            Log.e("VendorApproval", "Vendor wallet verification failed: " + e.getMessage());
+        }
+    }
+
 }
