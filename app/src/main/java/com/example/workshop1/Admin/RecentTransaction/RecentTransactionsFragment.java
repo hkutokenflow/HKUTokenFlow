@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +16,7 @@ import android.widget.TextView;
 
 import androidx.fragment.app.Fragment;
 
+import com.example.workshop1.Ethereum.EthereumManager;
 import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.Student.StudentHome.StudentHomeFragment;
@@ -27,6 +29,7 @@ public class RecentTransactionsFragment extends Fragment {
     private TableLayout transactionsTable;
     private EditText searchEditText;
     private Mysqliteopenhelper mysqliteopenhelper;
+    private EthereumManager ethereumManager;
 
     private List<Transaction> allTransactions = new ArrayList<>();
 
@@ -35,23 +38,32 @@ public class RecentTransactionsFragment extends Fragment {
         View root = inflater.inflate(R.layout.fragment_recent_transactions, container, false);
 
         mysqliteopenhelper = new Mysqliteopenhelper(getContext());
+        ethereumManager = new EthereumManager(getContext());
 
         // transaction table
         transactionsTable = root.findViewById(R.id.recent_transactions_table);
         searchEditText = root.findViewById(R.id.transaction_search);
 
-        Cursor cursor = mysqliteopenhelper.getAllTrans();
-        if (cursor.getCount() != 0) {
-            while (cursor.moveToNext()) {
-                String datetime = cursor.getString(1);
-                int src = cursor.getInt(2);
-                String srcType = mysqliteopenhelper.getUserType(src);
-                int dest = cursor.getInt(3);
-                String destType = mysqliteopenhelper.getUserType(dest);
-                int amt = cursor.getInt(4);
-                allTransactions.add(new Transaction(datetime, String.valueOf(src)+srcType, String.valueOf(dest)+destType, String.valueOf(amt)));
+        // Get blockchain data
+        new Thread(() -> {
+            try {
+                boolean initialized = ethereumManager.initializeSecurely();
+                if (initialized) {
+                    Log.d("RecentTransactions", "Initialization successful, loading blockchain data...");
+                    loadBlockchainTransactions();
+                } else {
+                    Log.e("RecentTransactions", "Failed to initialize EthereumManager");
+                    requireActivity().runOnUiThread(() -> {
+                        loadSQLiteTransactions();
+                    });
+                }
+            } catch (OutOfMemoryError e) {
+                Log.e("RecentTransactions", "OutOfMemoryError during initialization: " + e.getMessage());
+                requireActivity().runOnUiThread(() -> {
+                    loadSQLiteTransactions();
+                });
             }
-        }
+        }).start();
 
         // setupDummyData(); // 你也可以从数据库中读取
         displayTransactions(allTransactions);
@@ -68,6 +80,65 @@ public class RecentTransactionsFragment extends Fragment {
         });
 
         return root;
+    }
+
+    private void loadBlockchainTransactions() {
+        try {
+            Log.d("RecentTransactions", "=== LOADING BLOCKCHAIN TRANSACTIONS ===");
+            
+            if (!ethereumManager.isContractWorking()) {
+                Log.e("RecentTransactions", "Contract is not working, falling back to SQLite");
+                requireActivity().runOnUiThread(() -> {
+                    loadSQLiteTransactions();
+                });
+                return;
+            }
+
+            List<EthereumManager.BlockchainTransaction> blockchainTransactions = 
+                ethereumManager.getAllTransactions();
+            
+            requireActivity().runOnUiThread(() -> {
+                allTransactions.clear();
+                for (EthereumManager.BlockchainTransaction tx : blockchainTransactions) {
+                    String fromUser;
+                    if (tx.fromAddress.equals("0x0000000000000000000000000000000000000000")) {
+                        fromUser = "[mint]";
+                    } else {
+                        fromUser = mysqliteopenhelper.getUsernameFromWallet(tx.fromAddress);
+                    }
+                    String toUser = mysqliteopenhelper.getUsernameFromWallet(tx.toAddress);
+                    allTransactions.add(new Transaction(tx.timestamp, fromUser, toUser, tx.amount));
+                }
+                displayTransactions(allTransactions);
+            });
+            Log.d("RecentTransactions", "> Loaded " + blockchainTransactions.size() + " blockchain transactions");
+
+        } catch (Exception e) {
+            Log.e("RecentTransactions", "Error loading blockchain transactions: " + e.getMessage());
+            requireActivity().runOnUiThread(() -> {
+                loadSQLiteTransactions();
+            });
+        }
+    }
+
+    private void loadSQLiteTransactions() {
+        allTransactions.clear();
+        
+        Cursor cursor = mysqliteopenhelper.getAllTrans();
+        if (cursor.getCount() != 0) {
+            while (cursor.moveToNext()) {
+                String datetime = cursor.getString(1);
+                int src = cursor.getInt(2);
+                String srcType = mysqliteopenhelper.getUserType(src);
+                int dest = cursor.getInt(3);
+                String destType = mysqliteopenhelper.getUserType(dest);
+                int amt = cursor.getInt(4);
+                allTransactions.add(new Transaction(datetime, String.valueOf(src)+srcType, String.valueOf(dest)+destType, String.valueOf(amt)));
+            }
+        }
+        cursor.close();
+        
+        displayTransactions(allTransactions);
     }
 
 

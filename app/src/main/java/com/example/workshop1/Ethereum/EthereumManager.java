@@ -622,6 +622,109 @@ public class EthereumManager {
         }
     }
 
+    public int getTotalTransactionCount() {
+        Log.d("Ethereum Manager", "=== Getting total transaction count ===");
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeSecurely() first.");
+            return 0;
+        }
+        try {
+            EthFilter filter = new EthFilter(
+            DefaultBlockParameterName.EARLIEST,
+            DefaultBlockParameterName.LATEST,
+            CONTRACT_ADDRESS);
+
+            // Add Transfer event topic
+            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+            
+            // Get all logs matching the filter
+            EthLog ethLog = web3j.ethGetLogs(filter).send();
+            List<org.web3j.protocol.core.methods.response.EthLog.LogResult> logs = ethLog.getLogs();
+
+            int totalTransactions = logs.size() - 1; // don't count initial minting to admin
+            Log.d("Ethereum Manager", "Total Transfer events found: " + totalTransactions);
+            return totalTransactions; 
+
+        } catch (Exception e) {
+            Log.e("Ethereum Manager", "Error getting total transaction count: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    // admin recent transactions fragment
+    public List<BlockchainTransaction> getAllTransactions() {
+        List<BlockchainTransaction> allTransactions = new ArrayList<>();
+        if (!isInitialized()) {
+            Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeSecurely() first.");
+            return allTransactions;
+        }
+
+        try {
+            Log.d("EthereumManager", "=== Getting all transactions ===");
+            // Create filter for all Transfer events
+            EthFilter filter = new EthFilter(
+            DefaultBlockParameterName.EARLIEST,
+            DefaultBlockParameterName.LATEST,
+            CONTRACT_ADDRESS
+            );
+            // Add Transfer event topic
+            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+            
+            // Get all logs matching the filter
+            EthLog ethLog = web3j.ethGetLogs(filter).send();
+            List<org.web3j.protocol.core.methods.response.EthLog.LogResult> logs = ethLog.getLogs();
+            Log.d("EthereumManager", "Found " + logs.size() + " Transfer events");
+
+            boolean isFirst = true;
+            for (EthLog.LogResult logResult : logs) {
+                if (isFirst) {
+                    Log.d("EthereumManager", "Skipping initial minting");
+                    isFirst = false;
+                    continue;
+                }
+                
+                org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
+                Sc_test.TransferEventResponse event = Sc_test.getTransferEventFromLog(log);
+                
+                String timestamp = getBlockTimestamp(event.log.getBlockNumber());
+                String amount = convertWeiToTokens(event.value).toString();
+                
+                // Determine transaction type and description
+                String description;
+                String type;
+                if (event.from.equals("0x0000000000000000000000000000000000000000")) {
+                    // Minting transaction
+                    description = "Token Minting";
+                    type = "MINT";
+                } else {
+                    // Regular transfer
+                    description = "Token Transfer";
+                    type = "TRANSFER";
+                }
+                BlockchainTransaction tx = new BlockchainTransaction(
+                    event.log.getBlockNumber(),
+                    timestamp,
+                    description,
+                    amount,
+                    type,
+                    null,
+                    null, 
+                    event.from,
+                    event.to
+                );
+                allTransactions.add(tx);
+            }
+            allTransactions.sort((a, b) -> b.blockNumber.compareTo(a.blockNumber));
+            Log.d("EthereumManager", "Processed " + allTransactions.size() + " transactions");
+
+        } catch (Exception e) {
+            Log.e("EthereumManager", "Error getting all transactions: " + e.getMessage());
+            Log.e("EthereumManager", "Exception details: ", e);
+        }
+
+        return allTransactions;
+    }
+
     public static class BlockchainTransaction {
         public BigInteger blockNumber;
         public String timestamp;
@@ -867,6 +970,35 @@ public class EthereumManager {
                 
             } catch (Exception e) {
                 Log.e("Ethereum Manager", "Error checking contract state: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    public Sc_test getContract() {
+        return contract;
+    }
+
+    public void testContractAccess(String oldContractAddress) {
+        new Thread(() -> {
+            try {
+                Log.d("Ethereum Manager", "=== TESTING CONTRACT ACCESS ===");
+                Log.d("Ethereum Manager", "Old contract address: " + oldContractAddress);
+                Log.d("Ethereum Manager", "Current contract address: " + CONTRACT_ADDRESS);
+
+                String code = web3j.ethGetCode(oldContractAddress, DefaultBlockParameterName.LATEST).send().getCode();
+                Log.d("Ethereum Manager", "Contract code at old address: " + (code.equals("0x") ? "NO CONTRACT" : "CONTRACT EXISTS"));
+                Log.d("Ethereum Manager", "Code length: " + code.length());
+
+                if (code.equals("0x") || code.equals("0x0")) {
+                    Log.e("Ethereum Manager", "No contract found at address");
+                    return;
+                }
+                else {
+                    Log.d("Ethereum Manager", "Contract found at address");
+                }
+            } catch (Exception e) {
+                Log.e("Ethereum Manager", "Error testing old contract: " + e.getMessage());
+                e.printStackTrace();
             }
         }).start();
     }

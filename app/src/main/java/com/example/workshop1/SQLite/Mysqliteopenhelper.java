@@ -10,12 +10,16 @@ import com.example.workshop1.Utils.PasswordEncryption;
 
 import androidx.annotation.Nullable;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class Mysqliteopenhelper extends SQLiteOpenHelper {
 
     private static final String DBNAME = "Mydb";
 
     public Mysqliteopenhelper(@Nullable Context context) {
-        super(context, DBNAME, null, 13);
+        super(context, DBNAME, null, 15);
     }
 
     @Override
@@ -198,6 +202,17 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
             return userId;
         }
         return -999; // Not found
+    }
+
+    public String getUsernameFromWallet(String walletAddress) {
+        SQLiteDatabase db1 = getWritableDatabase();
+        Cursor cursor = db1.query("Users", new String[]{"username"}, "wallet = ?", new String[]{walletAddress}, null, null, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            String username = cursor.getString(0);
+            cursor.close();
+            return username;
+        }
+        return null; // Not found
     }
 
     public String getUserWallet(int userId) {
@@ -554,6 +569,199 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
             return 0;
         }
     }
+
+    // ------------------ Chart statistics ----------------
+    // 获取指定时间范围内的交易统计
+    public Map<String, Integer> getTransactionStatsByDateRange(String timeRange) {
+        Map<String, Integer> stats = new HashMap<>();
+        SQLiteDatabase db = getReadableDatabase();
+
+        String dateFilter = "";
+        String groupBy = "";
+        String dateFormat = "";
+
+        if (timeRange.equals("Weekly")) {
+            // 最近7天的数据，按天分组
+            dateFilter = "WHERE datetime >= date('now', '-7 days')";
+            groupBy = "GROUP BY date(datetime) ORDER BY date(datetime)";
+            dateFormat = "date(datetime)";
+        } else if (timeRange.equals("Monthly")) {
+            // 所有数据按月分组，确保按月份顺序
+            dateFilter = "";
+            groupBy = "GROUP BY strftime('%m', datetime) ORDER BY strftime('%m', datetime) ASC";
+            dateFormat = "strftime('%m', datetime)";
+        }
+
+        String query = "SELECT " + dateFormat + " as date_group, " +
+                "COUNT(*) as count " +
+                "FROM Transactions " + dateFilter + " " + groupBy;
+
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String dateGroup = cursor.getString(0);
+                int count = cursor.getInt(1);
+                stats.put(dateGroup, count);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return stats;
+    }
+
+    // 获取代币挖掘统计（admin发放的代币）
+    public Map<String, Integer> getTokenMiningStatsByDateRange(String timeRange) {
+        Map<String, Integer> stats = new HashMap<>();
+        SQLiteDatabase db = getReadableDatabase();
+
+        String dateFilter = "";
+        String groupBy = "";
+        String dateFormat = "";
+
+        if (timeRange.equals("Weekly")) {
+            // 统计admin作为source发放的代币（最近7天）
+            dateFilter = "WHERE t.source = 1 AND t.datetime >= date('now', '-7 days')";
+            groupBy = "GROUP BY date(t.datetime) ORDER BY date(t.datetime)";
+            dateFormat = "date(t.datetime)";
+        } else if (timeRange.equals("Monthly")) {
+            // 统计admin作为source发放的代币（所有数据按月分组）
+            dateFilter = "WHERE t.source = 1";
+            groupBy = "GROUP BY strftime('%m', t.datetime) ORDER BY strftime('%m', t.datetime) ASC";
+            dateFormat = "strftime('%m', t.datetime)";
+        }
+
+        String query = "SELECT " + dateFormat + " as date_group, " +
+                "SUM(t.amount) as total_tokens " +
+                "FROM Transactions t " + dateFilter + " " + groupBy;
+
+        Cursor cursor = db.rawQuery(query, null);
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String dateGroup = cursor.getString(0);
+                int totalTokens = cursor.getInt(1);
+                stats.put(dateGroup, totalTokens);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return stats;
+    }
+
+    // 获取用户特定时间范围内的交易统计
+    public Map<String, Integer> getUserTransactionStats(int userId, String timeRange) {
+        Map<String, Integer> stats = new HashMap<>();
+        SQLiteDatabase db = getReadableDatabase();
+
+        String dateFilter = "";
+        String groupBy = "";
+        String dateFormat = "";
+
+        if (timeRange.equals("Weekly")) {
+            dateFilter = "WHERE (source = ? OR destination = ?) AND datetime >= date('now', '-7 days')";
+            groupBy = "GROUP BY date(datetime) ORDER BY date(datetime)";
+            dateFormat = "date(datetime)";
+        } else if (timeRange.equals("Monthly")) {
+            // 当前年的1-12月数据，按月分组，确保按月份顺序
+            dateFilter = "WHERE (source = ? OR destination = ?) AND strftime('%Y', datetime) = strftime('%Y', 'now')";
+            groupBy = "GROUP BY strftime('%m', datetime) ORDER BY strftime('%m', datetime) ASC";
+            dateFormat = "strftime('%m', datetime)";
+        }
+
+        String query = "SELECT " + dateFormat + " as date_group, " +
+                "COUNT(*) as count " +
+                "FROM Transactions " + dateFilter + " " + groupBy;
+
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId), String.valueOf(userId)});
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                String dateGroup = cursor.getString(0);
+                int count = cursor.getInt(1);
+                stats.put(dateGroup, count);
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+
+        return stats;
+    }
+
+    // 填充缺失的日期数据（确保图表连续性）
+    public Map<String, Integer> fillMissingDates(Map<String, Integer> data, String timeRange) {
+        Map<String, Integer> filledData = new LinkedHashMap<>();
+
+        if (timeRange.equals("Weekly")) {
+            // 填充最近7天
+            for (int i = 6; i >= 0; i--) {
+                String date = getDateString(i);
+                filledData.put(date, data.getOrDefault(date, 0));
+            }
+        } else if (timeRange.equals("Monthly")) {
+            // 填充当前年的1-12月，确保按月份顺序
+            Log.d("SQLiteHelper", "=== 开始填充Monthly数据 ===");
+            Log.d("SQLiteHelper", "原始数据: " + data.toString());
+
+            for (int month = 1; month <= 12; month++) {
+                String monthStr = String.format("%02d", month); // 01, 02, ..., 12
+                int value = data.getOrDefault(monthStr, 0);
+                filledData.put(monthStr, value);
+                Log.d("SQLiteHelper", String.format("月份: %s, 值: %d", monthStr, value));
+            }
+
+            Log.d("SQLiteHelper", "填充后数据: " + filledData.toString());
+            Log.d("SQLiteHelper", "=== Monthly数据填充完成 ===");
+        }
+
+        return filledData;
+    }
+
+    // 获取指定天数前的日期字符串
+    private String getDateString(int daysAgo) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -daysAgo);
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+        return sdf.format(cal.getTime());
+    }
+
+    // 获取指定月数前的月份字符串
+    private String getMonthString(int monthsAgo) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.MONTH, -monthsAgo);
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM", java.util.Locale.US);
+        return sdf.format(cal.getTime());
+    }
+
+    // 获取Weekly模式的日期标签
+    public String[] getWeeklyLabels() {
+        String[] labels = new String[7];
+        for (int i = 6; i >= 0; i--) {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -i);
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("MM/dd", java.util.Locale.US);
+            labels[6-i] = sdf.format(cal.getTime());
+        }
+        return labels;
+    }
+
+    // 获取admin发放的代币总数
+    public int getAdminDistributedTokens() {
+        SQLiteDatabase db = getReadableDatabase();
+        String query = "SELECT SUM(amount) FROM Transactions WHERE source = 1";
+
+        Cursor cursor = db.rawQuery(query, null);
+        if (cursor != null && cursor.moveToFirst()) {
+            int totalTokens = cursor.getInt(0);
+            cursor.close();
+            return totalTokens;
+        }
+
+        if (cursor != null) {
+            cursor.close();
+        }
+        return 0;
+    }
+
 
     // ------------------ Delete all for testing (except users) ----------------
     public void reset() {

@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TableRow;
@@ -41,7 +42,6 @@ public class StudentHomeFragment extends Fragment {
 
     private TextView studentWalletText;
 
-
     private TableLayout transactionsTable;
     private EditText searchEditText;
     private List<Transaction> allTransactions = new ArrayList<>();
@@ -61,7 +61,8 @@ public class StudentHomeFragment extends Fragment {
 
         // ---------- wallet balance ----------
         studentWalletText = root.findViewById(R.id.student_wallet_balance);
-        
+
+
         // Initialize in background thread to avoid OOM
         new Thread(() -> {
             try {
@@ -73,7 +74,7 @@ public class StudentHomeFragment extends Fragment {
                     
                 } else {
                     Log.e("StudentHome", "Failed to initialize EthereumManager");
-                    requireActivity().runOnUiThread(() -> {
+                    requireActivity().runOnUiThread(() -> {;
                         studentWalletText.setText("Blockchain unavailable");
                         loadSQLiteTransactions(thisUser);
                     });
@@ -182,14 +183,13 @@ public class StudentHomeFragment extends Fragment {
         // Refresh blockchain balance when fragment resumes
         User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
         if (thisUser != null && ethereumManager != null) {
-            
             if (thisUser != null) {
                 Log.d("StudentHome", "onResume - User: " + thisUser.getUsername());
                 Log.d("StudentHome", "onResume - Wallet: " + thisUser.getWallet());
             } else {
                 Log.e("StudentHome", "onResume - User is NULL!");
             }
-
+            
             new Thread(() -> {
                 try {
                     // Wait for initialization to complete

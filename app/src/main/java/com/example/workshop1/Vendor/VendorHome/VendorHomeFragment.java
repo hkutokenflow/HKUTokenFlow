@@ -25,23 +25,24 @@ import com.example.workshop1.R;
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
 import com.example.workshop1.SQLite.User;
 import com.example.workshop1.Student.StudentHome.StudentHomeFragment;
-import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class VendorHomeFragment extends Fragment {
 
     private TextView vendorWalletText;
 
 
-    private BarChart vendorTransactionsChart;
+    private LineChart vendorTransactionsChart;
     private Spinner chartTimeRangeSpinner;
     private String selectedRange = "Weekly";
     private TableLayout transactionsTable;
@@ -84,7 +85,6 @@ public class VendorHomeFragment extends Fragment {
                 });
             }
         }).start();
-
 
 
         if (thisUser != null) {
@@ -214,27 +214,93 @@ public class VendorHomeFragment extends Fragment {
 
     }
 
-    //-----------------------------------barchart--------------------------------
-    // 设置 Transactions 的柱形图
+    //-----------------------------------linechart--------------------------------
+    // 设置 Transactions 的折线图
     private void setupTransactionsChart() {
-        ArrayList<BarEntry> entries = new ArrayList<>();
-        if (selectedRange.equals("Weekly")) {
-            for (int i = 1; i <= 7; i++) {
-                entries.add(new BarEntry(i, (float) (50 + Math.random() * 30)));
-            }
-        } else {
-            for (int i = 1; i <= 12; i++) {
-                entries.add(new BarEntry(i, (float) (200 + Math.random() * 100)));
+        ArrayList<Entry> entries = new ArrayList<>();
+
+        User thisUser = (User) requireActivity().getIntent().getSerializableExtra("userObj");
+        if (thisUser != null) {
+            int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
+            Map<String, Integer> transactionStats = mysqliteopenhelper.getUserTransactionStats(uid, selectedRange);
+
+            // 填充缺失的日期
+            Map<String, Integer> filledStats = mysqliteopenhelper.fillMissingDates(transactionStats, selectedRange);
+
+            int index = 0; // 从0开始，而不是1
+            for (Map.Entry<String, Integer> entry : filledStats.entrySet()) {
+                entries.add(new Entry(index, entry.getValue().floatValue()));
+                index++;
             }
         }
 
-        BarDataSet dataSet = new BarDataSet(entries, "Transactions");
+        LineDataSet dataSet = new LineDataSet(entries, "Transactions");
         dataSet.setColor(getResources().getColor(R.color.blue_200));
-        BarData barData = new BarData(dataSet);
-        barData.setBarWidth(0.9f);
+        dataSet.setLineWidth(2f);
+        dataSet.setValueTextColor(getResources().getColor(R.color.colorPrimaryDark));
+        LineData lineData = new LineData(dataSet);
 
-        vendorTransactionsChart.setData(barData);
-        configureBarChart(vendorTransactionsChart);
+        vendorTransactionsChart.setData(lineData);
+        configureLineChart(vendorTransactionsChart);
+
+        // 设置X轴标签
+        if (selectedRange.equals("Monthly")) {
+            setupMonthlyXAxis(vendorTransactionsChart);
+        } else {
+            resetXAxis(vendorTransactionsChart);
+        }
+    }
+
+    // 重置X轴为默认设置
+    private void resetXAxis(LineChart chart) {
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+
+        if (selectedRange.equals("Weekly")) {
+            // 设置Weekly模式的日期标签
+            final String[] weeklyLabels = mysqliteopenhelper.getWeeklyLabels();
+            xAxis.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+                @Override
+                public String getFormattedValue(float value) {
+                    int index = (int) value; // 移除 -1，因为x值现在从0开始
+                    if (index >= 0 && index < weeklyLabels.length) {
+                        return weeklyLabels[index];
+                    }
+                    return "";
+                }
+            });
+            xAxis.setLabelCount(7, true);
+        } else {
+            xAxis.setValueFormatter(null); // 清除自定义格式化器
+        }
+
+        chart.invalidate();
+    }
+
+    // 设置月度的X轴标签
+    private void setupMonthlyXAxis(LineChart chart) {
+        XAxis xAxis = chart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+
+        // 设置月份标签
+        final String[] months = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
+        xAxis.setValueFormatter(new com.github.mikephil.charting.formatter.ValueFormatter() {
+            @Override
+            public String getFormattedValue(float value) {
+                int index = (int) value; // 移除 -1，因为x值现在从0开始
+                if (index >= 0 && index < months.length) {
+                    return months[index];
+                }
+                return "";
+            }
+        });
+
+        xAxis.setLabelCount(12, true);
+        chart.invalidate();
     }
 
     @Override
@@ -293,10 +359,9 @@ public class VendorHomeFragment extends Fragment {
     }
 
 
-    // 配置柱形图
-    private void configureBarChart(BarChart chart) {
+    // 配置折线图
+    private void configureLineChart(LineChart chart) {
         chart.getDescription().setEnabled(false);
-        chart.setFitBars(true);
         chart.setDrawGridBackground(false);
         chart.getAxisRight().setEnabled(false);
 
