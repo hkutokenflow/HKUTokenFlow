@@ -61,7 +61,7 @@ public class changeVendorPasswordFragment extends Fragment {
         }
 
         if (!pwd.equals(equal)) {
-            Toast.makeText(requireContext(), "Two time passwords are different", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(), "Passwords are different", Toast.LENGTH_SHORT).show();
             return;
         }
 

@@ -136,7 +136,7 @@ public class EthereumManager {
     // ------------------------ Wallet interactions ------------------------
 
     // Mint tokens to wallet address
-    public void mintTokens(String toAddress, BigInteger amount) {
+    public boolean mintTokens(String toAddress, BigInteger amount) {
         Log.d("Ethereum Manager", "=== mintTokens() called ===");
         if (!isInitialized()) {
             Log.e("Ethereum Manager", "EthereumManager not initialized. Call initializeWithPassword() first.");
@@ -152,7 +152,7 @@ public class EthereumManager {
                 boolean startSuccess = GethMiningController.startMining(4).get();
                 if (!startSuccess) {
                     Log.e("Ethereum Manager", "Failed to start mining");
-                    return;
+                    return false;
                 }
                 manualMiningStart = true;
                 waitForMiningToStart();
@@ -167,9 +167,11 @@ public class EthereumManager {
             Log.d("Ethereum Manager", "Transaction hash: " + receipt.getTransactionHash());
             Log.d("Ethereum Manager", "Block number: " + receipt.getBlockNumber());
             Log.d("Ethereum Manager", "Gas used: " + receipt.getGasUsed());
+            return true; // success
 
         } catch (Exception e) {
             Log.e("Ethereum Manager", "Error minting tokens: " + e.getMessage());
+            return false;
         } finally {
             if (manualMiningStart) {
                 try {
@@ -1002,6 +1004,7 @@ public class EthereumManager {
             }
         }).start();
     }
+
 
 }
 

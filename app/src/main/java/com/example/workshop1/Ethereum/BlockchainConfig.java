@@ -7,13 +7,13 @@ public class BlockchainConfig {
     // =========================
 
     // ngrok url
-    public static final String BLOCKCHAIN_URL = "https://756571b88f06.ngrok-free.app";
+    public static final String BLOCKCHAIN_URL = " https://cca922ade799.ngrok-free.app";
     
     // =========================
     // SMART CONTRACT ADDRESSES
     // =========================
     
-    public static final String TOKEN_CONTRACT_ADDRESS = "0xb18601EcC66B1d636d62b7422f9979357EC635A6";
+    public static final String TOKEN_CONTRACT_ADDRESS = "0xcE7b0a1629575A6c478A51CCd4245463009b4464";
 
     // =========================
     // ACCOUNT ADDRESSES

@@ -119,7 +119,7 @@ public class VoucherListAdapter extends ArrayAdapter<VoucherItem> {
 
         btnConfirm.setOnClickListener(v -> {
             String newName = etName.getText().toString().trim();
-            String newDesc = etName.getText().toString().trim();
+            String newDesc = etDesc.getText().toString().trim();
             String tokenStr = etTokens.getText().toString().trim();
 
             if (newName.isEmpty() || tokenStr.isEmpty() || newDesc.isEmpty()) {

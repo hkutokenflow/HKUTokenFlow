@@ -64,7 +64,7 @@ public class VendorActivity extends AppCompatActivity {
             }
             else if(id == R.id.nav_changepwd){
                 selectedFragment = new changeVendorPasswordFragment();
-                toolbar.setTitle("Change Passwords");
+                toolbar.setTitle("Change Password");
             }
             else if(id == R.id.nav_logout){
                 // log out

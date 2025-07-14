@@ -33,7 +33,8 @@ contract HKUToken is ERC20, AccessControl {
     }
 
     // Transfer tokens for reward redemption
-    function redeemTokens(address from, address to, uint256 amount) public onlyRole(STUDENT_ROLE) {
+    function redeemTokens(address from, address to, uint256 amount) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(hasRole(STUDENT_ROLE, from), "Invalid student");
         require(hasRole(VENDOR_ROLE, to), "Invalid vendor");
         _transfer(from, to, amount);
         emit TokensRedeemed(from, to, amount);

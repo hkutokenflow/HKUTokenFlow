@@ -62,7 +62,7 @@ public class EventCheckinFragment extends Fragment {
         new Thread(() -> {
             try {
                 boolean success = ethereumManager.initializeSecurely();
-                initialized = success; 
+                initialized = success;
                 
                 if (!success) {
                     Log.e("EventCheckin", "Failed to initialize EthereumManager");
@@ -154,10 +154,6 @@ public class EventCheckinFragment extends Fragment {
                             return;
                         }
 
-                        // Insert into database for event name retrieval
-                        Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
-                        mysqliteopenhelper.addTransaction(trans);
-
                         showMintingProgress(eName, reward);
 
                         // Mint tokens in background thread
@@ -180,16 +176,26 @@ public class EventCheckinFragment extends Fragment {
                                 }
                                 
                                 // Mint tokens to student's wallet
-                                ethereumManager.mintTokens(studentWalletAddress, BigInteger.valueOf(reward));
+                                boolean mintingSuccess = ethereumManager.mintTokens(studentWalletAddress, BigInteger.valueOf(reward));
                                 
                                 // Update UI on main thread
                                 requireActivity().runOnUiThread(() -> {
                                     dismissMintingProgress();
-                                    Toast.makeText(getContext(), 
-                                        "Check-in successful!\nEvent: " + eName,
-                                        Toast.LENGTH_SHORT).show();
-                                        
-                                    Log.d("EventCheckin", "Token minting completed successfully");
+                                    if (mintingSuccess) {
+                                        // Insert into database for event name retrieval
+                                        Transaction trans = new Transaction(formattedDateTime, 1, uid, reward, checkInIdNum, "e");
+                                        mysqliteopenhelper.addTransaction(trans);
+
+                                        Toast.makeText(getContext(),
+                                                "Check-in successful!\nEvent: " + eName,
+                                                Toast.LENGTH_SHORT).show();
+                                        Log.d("EventCheckin", "Token minting completed successfully");
+                                    } else {
+                                        Toast.makeText(getContext(),
+                                                "Token minting and event check-in failed. Please contact admin.",
+                                                Toast.LENGTH_LONG).show();
+                                        Log.e("EventCheckin", "Token minting failed");
+                                    }
                                 });
                                 
                             } catch (Exception e) {

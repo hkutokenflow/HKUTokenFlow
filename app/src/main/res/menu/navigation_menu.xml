@@ -16,7 +16,7 @@
 
     <item
         android:id="@+id/nav_manage_vendor"
-        android:title="Manage Vendor"
+        android:title="Manage Vendors"
         android:icon="@drawable/vendor" />
 
 

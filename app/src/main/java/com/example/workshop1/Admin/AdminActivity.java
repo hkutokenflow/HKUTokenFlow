@@ -68,7 +68,7 @@ public class AdminActivity extends AppCompatActivity {
                 toolbar.setTitle("Recent Transactions");
             } else if (id == R.id.nav_manage_vendor) {
                 selectedFragment = new ManageVendorFragment();
-                toolbar.setTitle("Manage Vendor");
+                toolbar.setTitle("Manage Vendors");
             } else if (id == R.id.nav_logout) {
                 // 处理退出登录
                 Intent intent = new Intent(AdminActivity.this, LoginActivity.class);
