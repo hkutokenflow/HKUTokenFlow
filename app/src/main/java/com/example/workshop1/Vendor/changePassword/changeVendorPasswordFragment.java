@@ -89,13 +89,12 @@ public class changeVendorPasswordFragment extends Fragment {
         mysqliteopenhelper.editVendorPwd(thisUser.getUsername(), encryptedPassword);
         //-----------------------------Update Password here---------------------------------------
 
+        thisUser.setPassword(encryptedPassword);
+        requireActivity().getIntent().putExtra("userObj", thisUser);
+
         Toast.makeText(requireContext(), "Password changed successfully!", Toast.LENGTH_SHORT).show();
     }
 
-
-    private boolean isHKUEmail(String email) {
-        return email.endsWith("@connect.hku.hk") || email.endsWith("@hku.hk");
-    }
 
     private boolean isPasswordValid(String password) {
         if (password.length() < 6) {

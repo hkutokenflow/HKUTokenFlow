@@ -19,7 +19,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
     private static final String DBNAME = "Mydb";
 
     public Mysqliteopenhelper(@Nullable Context context) {
-        super(context, DBNAME, null, 16);
+        super(context, DBNAME, null, 17);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
                 "erid INTEGER, ttype varchar(2))";
         db.execSQL(createTransactions);
 
-        String createRewards = "CREATE TABLE Rewards (_id INTEGER PRIMARY KEY, " +
+        String createRewards = "CREATE TABLE Rewards (_id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "name varchar(255), description varchar(1000), value INTEGER," +
                 "uid INTEGER REFERENCES Users(_id))";
         db.execSQL(createRewards);

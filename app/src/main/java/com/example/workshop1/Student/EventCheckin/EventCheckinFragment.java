@@ -126,7 +126,7 @@ public class EventCheckinFragment extends Fragment {
 
                 // check if check-in id is valid (exists in Events)
                 if (!mysqliteopenhelper.checkValidEvent(Integer.parseInt(checkInId))) {
-                    Toast.makeText(getContext(), "Check-in unsuccessful\nInvalid event ID", Toast.LENGTH_LONG).show();
+                    Toast.makeText(getContext(), "Check-in unsuccessful\nInvalid event QR code", Toast.LENGTH_LONG).show();
                 } else {
                     // check if check-in is repeated
                     int uid = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());

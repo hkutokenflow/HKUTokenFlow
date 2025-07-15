@@ -506,9 +506,12 @@ public class EthereumManager {
             // Convert token amount back to integer for SQLite comparison
             int amount = convertWeiToTokens(tokenAmount).intValue();
             
-            // Parse timestamp for rough comparison (transactions might be a few seconds apart)
+            // Parse timestamp for comparison 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
             Date blockchainDate = sdf.parse(timestamp);
+
+            String bestEventName = null;
+            long smallestTimeDiff = Long.MAX_VALUE;
 
             // Look for SQLite transaction with matching user, amount, and timestamp (within 5 minutes)
             Cursor cursor = mysqliteopenhelper.getUserTrans(userId);
@@ -525,12 +528,11 @@ public class EthereumManager {
                             long timeDiff = Math.abs(blockchainDate.getTime() - sqliteDate.getTime());
                             
                             // If timestamps are within 5 minutes (300,000 ms), consider it a match
-                            if (timeDiff < 300000) {
+                            if (timeDiff < 300000 && timeDiff < smallestTimeDiff) {
+                                smallestTimeDiff = timeDiff;
                                 int eventId = cursor.getInt(5);
-                                String eventName = mysqliteopenhelper.getEventName(eventId);
-                                Log.d("EthereumManager", "Found matching event: " + eventName + " (amount: " + amount + ")");
-                                cursor.close();
-                                return eventName;
+                                bestEventName = mysqliteopenhelper.getEventName(eventId);
+                                Log.d("EthereumManager", "Found closer matching event: " + bestEventName + " (amount: " + amount + ")");
                             }
                         } catch (Exception e) {
                             Log.w("EthereumManager", "Error parsing SQLite timestamp: " + sqliteTimestamp);
@@ -539,6 +541,12 @@ public class EthereumManager {
                 }
                 cursor.close();
             }
+
+            if (bestEventName != null) {
+                Log.d("EthereumManager", "Best matching event: " + bestEventName + " (smallest time diff: " + smallestTimeDiff + "ms)");
+                return bestEventName;
+            }
+
             Log.w("EthereumManager", "No matching SQLite event found for amount " + amount + " at " + timestamp);
             return null;
         } catch (Exception e) {

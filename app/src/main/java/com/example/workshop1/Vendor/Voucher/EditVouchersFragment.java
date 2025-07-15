@@ -46,7 +46,7 @@ public class EditVouchersFragment extends Fragment {
         mysqliteopenhelper = new Mysqliteopenhelper(requireContext());
 
         int vendorId = mysqliteopenhelper.getUserId(thisUser.getUsername(), thisUser.getPassword());
-        Log.d("editReward", "vendor id" + vendorId);
+        Log.d("editReward", "vendor id " + vendorId);
 
         voucherListView = view.findViewById(R.id.voucher_list_view);
         addButton = view.findViewById(R.id.btn_add);
@@ -54,6 +54,7 @@ public class EditVouchersFragment extends Fragment {
 
         //-------------------------ADD----------------------------------
         Cursor cursor = mysqliteopenhelper.getRewardsVendor(vendorId);
+
         if (cursor != null) {
             while (cursor.moveToNext()) {
                 String name = cursor.getString(1);
