@@ -34,7 +34,7 @@ public class Code {
     //默认线条的条数
     private static final int DEFAULT_LINE_NUMBER = 5;
     //padding值
-    private static final int BASE_PADDING_LEFT = 10, RANGE_PADDING_LEFT = 15, BASE_PADDING_TOP = 15, RANGE_PADDING_TOP = 20;
+    private static final int BASE_PADDING_LEFT = 12, RANGE_PADDING_LEFT = 12, BASE_PADDING_TOP = 21, RANGE_PADDING_TOP = 15;
     //验证码的默认宽高
     private static final int DEFAULT_WIDTH = 100, DEFAULT_HEIGHT = 40;
 
