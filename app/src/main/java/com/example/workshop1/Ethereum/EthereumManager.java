@@ -651,7 +651,7 @@ public class EthereumManager {
             EthLog ethLog = web3j.ethGetLogs(filter).send();
             List<org.web3j.protocol.core.methods.response.EthLog.LogResult> logs = ethLog.getLogs();
 
-            int totalTransactions = logs.size() - 1; // don't count initial minting to admin
+            int totalTransactions = logs.size(); // don't count initial minting to admin
             Log.d("Ethereum Manager", "Total Transfer events found: " + totalTransactions);
             return totalTransactions; 
 
@@ -685,14 +685,7 @@ public class EthereumManager {
             List<org.web3j.protocol.core.methods.response.EthLog.LogResult> logs = ethLog.getLogs();
             Log.d("EthereumManager", "Found " + logs.size() + " Transfer events");
 
-            boolean isFirst = true;
             for (EthLog.LogResult logResult : logs) {
-                if (isFirst) {
-                    Log.d("EthereumManager", "Skipping initial minting");
-                    isFirst = false;
-                    continue;
-                }
-                
                 org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
                 Sc_test.TransferEventResponse event = Sc_test.getTransferEventFromLog(log);
                 
@@ -810,6 +803,98 @@ public class EthereumManager {
                 }
             }
         }).start();
+    }
+
+    
+    // Check if user has role, if not add role
+    public void addRoleIfMissing(String walletAddress, String userType, RoleCallback callback) {
+        if (walletAddress == null || walletAddress.isEmpty()) {
+            if (callback != null) callback.onComplete(false, "Invalid wallet address");
+            return;
+        }
+
+        if ("admin".equals(userType)) {
+            if (callback != null) callback.onComplete(true, "Admin role pre-assigned");
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                if (!isInitialized()) {
+                    boolean initialized = initializeSecurely();
+                    if (!initialized) {
+                        if (callback != null) callback.onComplete(false, "Failed to initialize blockchain");
+                        return;
+                    }
+                }
+
+                // Check if role exists
+                Log.d("Ethereum Manager", "===== Checking role for " + userType + ": " + walletAddress + " =====");
+                
+                byte[] roleBytes;
+                String roleString;
+                if ("student".equals(userType)) {
+                    roleBytes = contract.STUDENT_ROLE().send();
+                    roleString = "STUDENT";
+                } else if ("vendor".equals(userType)) {
+                    roleBytes = contract.VENDOR_ROLE().send();
+                    roleString = "VENDOR";
+                } else {
+                    if (callback != null) callback.onComplete(false, "Invalid user type: " + userType);
+                    return;
+                }
+
+                boolean hasRole = contract.hasRole(roleBytes, walletAddress).send();
+                Log.d("Ethereum Manager", "Has " + userType + " role: " + hasRole);
+
+                // Role exists
+                if (hasRole) {
+                    Log.d("Ethereum Manager", "User already has required role");
+                    if (callback != null) callback.onComplete(true, "Role already assigned");
+                    return;
+                }
+
+                // Role does not exist (after contract redeployment)
+                Log.d("Ethereum Manager", "Assigning " + roleString + " role to " + walletAddress);
+                
+                boolean manualMiningStart = false;
+                try {
+                    if (!isMiningActive()) {
+                        boolean startSuccess = GethMiningController.startMining(4).get();
+                        if (!startSuccess) {
+                            if (callback != null) callback.onComplete(false, "Failed to start mining");
+                            return;
+                        }
+                        manualMiningStart = true;
+                        waitForMiningToStart();
+                    }
+
+                    // Assign role
+                    TransactionReceipt receipt = contract.assignRole(walletAddress, roleString).send();
+                    Log.d("Ethereum Manager", roleString + " role assigned successfully");
+                    Log.d("Ethereum Manager", "Transaction hash: " + receipt.getTransactionHash());
+                    
+                    if (callback != null) callback.onComplete(true, "Role assigned successfully");
+
+                } finally {
+                    if (manualMiningStart) {
+                        try {
+                            GethMiningController.stopMining();
+                        } catch (Exception e) {
+                            Log.e("Ethereum Manager", "Error stopping mining: " + e.getMessage());
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                Log.e("Ethereum Manager", "Error in ensureUserRole: " + e.getMessage());
+                if (callback != null) callback.onComplete(false, "Error: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    public interface RoleCallback {
+        void onComplete(boolean success, String message);
     }
     
 

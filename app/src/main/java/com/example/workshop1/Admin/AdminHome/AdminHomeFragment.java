@@ -147,9 +147,9 @@ public class AdminHomeFragment extends Fragment {
             // Get total tokens minted 
             BigInteger totalSupply = ethereumManager.getContract().totalSupply().send();
             BigInteger totalTokensMinted = ethereumManager.convertWeiToTokens(totalSupply);
-            BigInteger initialMinting = BigInteger.valueOf(1_000_000); // initally minted 1000000 tokens to admin
-            BigInteger actualTokensMinted = totalTokensMinted.subtract(initialMinting);
-            Log.d("AdminHome", "Total tokens minted: " + actualTokensMinted);
+            // BigInteger initialMinting = BigInteger.valueOf(1_000_000); // initally minted 1000000 tokens to admin
+            // BigInteger actualTokensMinted = totalTokensMinted.subtract(initialMinting);
+            Log.d("AdminHome", "Total tokens minted: " + totalTokensMinted);
 
             // Get total no of transactions
             List<EthereumManager.BlockchainTransaction> allTransactions = ethereumManager.getAllTransactions();
@@ -157,7 +157,7 @@ public class AdminHomeFragment extends Fragment {
             Log.d("AdminHome", "Total transactions: " + totalTransactionCount);
 
             requireActivity().runOnUiThread(() -> {
-                totalTokensText.setText(actualTokensMinted.toString() + " HKUT");
+                totalTokensText.setText(totalTokensMinted.toString() + " HKUT");
                 totalTransactionsText.setText(String.valueOf(totalTransactionCount));
             });
             Log.d("AdminHome", "> Blockchain data loaded successfully");

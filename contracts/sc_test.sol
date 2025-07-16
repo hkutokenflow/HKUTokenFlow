@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -14,15 +14,16 @@ contract HKUToken is ERC20, AccessControl {
 
     constructor() ERC20("HKUToken", "HKUT") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);  // Assign admin role
-        _mint(msg.sender, 1000000 * 10**decimals());  // Mint initial tokens to admin
     }
 
     // Function to assign roles to users
     function assignRole(address user, string memory role) public onlyRole(DEFAULT_ADMIN_ROLE) {
         if (keccak256(bytes(role)) == STUDENT_ROLE) {
             _grantRole(STUDENT_ROLE, user);
-        } else {
+        } else if (keccak256(bytes(role)) == VENDOR_ROLE) {
             _grantRole(VENDOR_ROLE, user);
+        } else {
+            revert("Invalid role specified");
         }
     }
 

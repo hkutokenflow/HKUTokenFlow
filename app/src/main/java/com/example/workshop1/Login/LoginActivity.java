@@ -171,6 +171,8 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 editor.apply();
 
+                // add role to smart contract if missing
+                addBlockchainRoleIfMissing(accountRecord);
                 Toast.makeText(this, "Login successful", Toast.LENGTH_SHORT).show();
 
                 // -----------------------Jump to right activity----------------------
@@ -229,6 +231,27 @@ public class LoginActivity extends AppCompatActivity {
             iv_eye.setImageResource(R.drawable.baseline_visibility_off_24);
             Visiable = 0;
         }
+    }
+
+    private void addBlockchainRoleIfMissing(User user) {
+        String walletAddress = user.getWallet();
+        String userType = user.getType();
+
+        Log.d("Login", "Ensuring blockchain role for " + userType + ": " + walletAddress);
+
+        EthereumManager ethereumManager = new EthereumManager(this);
+        ethereumManager.addRoleIfMissing(walletAddress, userType, new EthereumManager.RoleCallback() {
+            @Override
+            public void onComplete(boolean success, String message) {
+                runOnUiThread(() -> {
+                    if (success) {
+                        Log.d("Login", "Blockchain role OK: " + message);
+                    } else {
+                        Log.w("Login", "Role assigning error: " + message);
+                    }
+                });
+            }
+        });
     }
 
 }
