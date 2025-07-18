@@ -5,7 +5,7 @@ import android.database.Cursor;
 import android.util.Log;
 
 import com.example.workshop1.SQLite.Mysqliteopenhelper;
-import com.example.workshop1.contracts.Sc_test;
+import com.example.workshop1.contracts.HKUT;
 
 import org.web3j.crypto.Credentials;
 import org.web3j.protocol.Web3j;
@@ -39,7 +39,7 @@ public class EthereumManager {
     private final ContractGasProvider gasProvider;
     private final Mysqliteopenhelper mysqliteopenhelper;
     private final Context context;
-    private Sc_test contract;
+    private HKUT contract;
     private TransactionManager transactionManager;
     private Credentials adminCredentials;
 
@@ -105,7 +105,7 @@ public class EthereumManager {
 
             // Load smart contract with admin credentials
             Log.d("Ethereum Manager", "Loading smart contract at: " + CONTRACT_ADDRESS);
-            contract = Sc_test.load(
+            contract = HKUT.load(
                     CONTRACT_ADDRESS,
                     web3j,
                     transactionManager,
@@ -298,10 +298,10 @@ public class EthereumManager {
         try {           
             // ===== Get all transfer events to this address (receiver = address, includes minting) =====
             Log.d("EthereumManager", "--- Searching for Transfer events TO address ---");
-            List<Sc_test.TransferEventResponse> transferToEvents = getTransferEventsTo(walletAddress);
+            List<HKUT.TransferEventResponse> transferToEvents = getTransferEventsTo(walletAddress);
             Log.d("EthereumManager", "Found " + transferToEvents.size() + " Transfer TO events");
 
-            for (Sc_test.TransferEventResponse event : transferToEvents) {
+            for (HKUT.TransferEventResponse event : transferToEvents) {
                 Log.d("EthereumManager", "Processing Transfer TO event:");
                 Log.d("EthereumManager", "  - Block: " + event.log.getBlockNumber());
                 Log.d("EthereumManager", "  - From: " + event.from);
@@ -361,10 +361,10 @@ public class EthereumManager {
 
             // Get all transfer events from this address (sender = address)
             Log.d("EthereumManager", "--- Searching for Transfer events FROM address ---");
-            List<Sc_test.TransferEventResponse> transferFromEvents = getTransferEventsFrom(walletAddress);
+            List<HKUT.TransferEventResponse> transferFromEvents = getTransferEventsFrom(walletAddress);
             Log.d("EthereumManager", "Found " + transferFromEvents.size() + " Transfer FROM events");
             
-            for (Sc_test.TransferEventResponse event : transferFromEvents) {
+            for (HKUT.TransferEventResponse event : transferFromEvents) {
                 Log.d("EthereumManager", "Processing Transfer FROM event:");
                 Log.d("EthereumManager", "  - Block: " + event.log.getBlockNumber());
                 Log.d("EthereumManager", "  - From: " + event.from);
@@ -414,68 +414,68 @@ public class EthereumManager {
     }
 
     // Get TokensMinted events for a specific address
-    private List<Sc_test.TokensMintedEventResponse> getMintedEvents(String address) throws Exception {
+    private List<HKUT.TokensMintedEventResponse> getMintedEvents(String address) throws Exception {
         EthFilter filter = new EthFilter(
             DefaultBlockParameterName.EARLIEST,
             DefaultBlockParameterName.LATEST,
             CONTRACT_ADDRESS
         );
         
-        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TOKENSMINTED_EVENT));
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(HKUT.TOKENSMINTED_EVENT));
         filter.addSingleTopic(null); // Second topic is the 'to' address (indexed)
         filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // Format address as topic
         
         EthLog ethLog = web3j.ethGetLogs(filter).send();
-        List<Sc_test.TokensMintedEventResponse> events = new ArrayList<>();
+        List<HKUT.TokensMintedEventResponse> events = new ArrayList<>();
         
         for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
             org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
-            events.add(Sc_test.getTokensMintedEventFromLog(log));
+            events.add(HKUT.getTokensMintedEventFromLog(log));
         }
         
         return events;
     }
 
     // Get Transfer events where receiver = address
-    private List<Sc_test.TransferEventResponse> getTransferEventsTo(String address) throws Exception {
+    private List<HKUT.TransferEventResponse> getTransferEventsTo(String address) throws Exception {
         EthFilter filter = new EthFilter(
             DefaultBlockParameterName.EARLIEST,
             DefaultBlockParameterName.LATEST,
             CONTRACT_ADDRESS
         );
         
-        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(HKUT.TRANSFER_EVENT));
         filter.addSingleTopic(null); // 'from' address (skip)
         filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // 'to' address
         
         EthLog ethLog = web3j.ethGetLogs(filter).send();
-        List<Sc_test.TransferEventResponse> events = new ArrayList<>();
+        List<HKUT.TransferEventResponse> events = new ArrayList<>();
         
         for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
             org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
-            events.add(Sc_test.getTransferEventFromLog(log));
+            events.add(HKUT.getTransferEventFromLog(log));
         }
         
         return events;
     }
 
     // Get Transfer events where sender = address
-    private List<Sc_test.TransferEventResponse> getTransferEventsFrom(String address) throws Exception {
+    private List<HKUT.TransferEventResponse> getTransferEventsFrom(String address) throws Exception {
         EthFilter filter = new EthFilter(
             DefaultBlockParameterName.EARLIEST,
             DefaultBlockParameterName.LATEST,
             CONTRACT_ADDRESS
         );
         
-        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+        filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(HKUT.TRANSFER_EVENT));
         filter.addOptionalTopics("0x000000000000000000000000" + address.substring(2)); // 'from' address
         
         EthLog ethLog = web3j.ethGetLogs(filter).send();
-        List<Sc_test.TransferEventResponse> events = new ArrayList<>();
+        List<HKUT.TransferEventResponse> events = new ArrayList<>();
         
         for (EthLog.LogResult<?> logResult : ethLog.getLogs()) {
             org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
-            events.add(Sc_test.getTransferEventFromLog(log));
+            events.add(HKUT.getTransferEventFromLog(log));
         }
         
         return events;
@@ -645,7 +645,7 @@ public class EthereumManager {
             CONTRACT_ADDRESS);
 
             // Add Transfer event topic
-            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(HKUT.TRANSFER_EVENT));
             
             // Get all logs matching the filter
             EthLog ethLog = web3j.ethGetLogs(filter).send();
@@ -678,7 +678,7 @@ public class EthereumManager {
             CONTRACT_ADDRESS
             );
             // Add Transfer event topic
-            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(Sc_test.TRANSFER_EVENT));
+            filter.addSingleTopic(org.web3j.abi.EventEncoder.encode(HKUT.TRANSFER_EVENT));
             
             // Get all logs matching the filter
             EthLog ethLog = web3j.ethGetLogs(filter).send();
@@ -687,7 +687,7 @@ public class EthereumManager {
 
             for (EthLog.LogResult logResult : logs) {
                 org.web3j.protocol.core.methods.response.Log log = (org.web3j.protocol.core.methods.response.Log) logResult.get();
-                Sc_test.TransferEventResponse event = Sc_test.getTransferEventFromLog(log);
+                HKUT.TransferEventResponse event = HKUT.getTransferEventFromLog(log);
                 
                 String timestamp = getBlockTimestamp(event.log.getBlockNumber());
                 String amount = convertWeiToTokens(event.value).toString();
@@ -1069,7 +1069,7 @@ public class EthereumManager {
         }).start();
     }
 
-    public Sc_test getContract() {
+    public HKUT getContract() {
         return contract;
     }
 
