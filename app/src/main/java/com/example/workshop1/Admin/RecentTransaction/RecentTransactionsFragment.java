@@ -23,6 +23,8 @@ import com.example.workshop1.Student.StudentHome.StudentHomeFragment;
 
 import java.util.ArrayList;
 import java.util.List;
+import android.widget.Toast;
+import java.util.Arrays;
 
 public class RecentTransactionsFragment extends Fragment {
 
@@ -78,6 +80,9 @@ public class RecentTransactionsFragment extends Fragment {
                 filterTransactions(s.toString());
             }
         });
+
+        // checkSQLiteTransactions();
+        // cleanupTransactions();
 
         return root;
     }
@@ -227,4 +232,97 @@ public class RecentTransactionsFragment extends Fragment {
                     balance.toLowerCase().contains(lower);
         }
     }
+
+
+    // ----------------------- manual sync with blockchain -----------------------
+    private void showAllSQLiteTransactions() {
+        new Thread(() -> {
+            List<Mysqliteopenhelper.DetailedTransaction> sqliteTransactions = 
+                mysqliteopenhelper.getAllDetailedTransactions();
+            
+            requireActivity().runOnUiThread(() -> {
+                Log.d("ManualSync", "=== ALL SQLITE TRANSACTIONS ===");
+                Log.d("ManualSync", "Total SQLite transactions: " + sqliteTransactions.size());
+                
+                for (Mysqliteopenhelper.DetailedTransaction tx : sqliteTransactions) {
+                    Log.d("ManualSync", tx.toString());
+                    // Also log wallet addresses for comparison with blockchain
+                    Log.d("ManualSync", "  Wallets: " + tx.sourceWallet + " -> " + tx.destWallet);
+                }
+                Log.d("ManualSync", "=== END SQLITE TRANSACTIONS ===");
+            });
+        }).start();
+    }
+
+    private void deleteSpecificTransactions(List<Integer> transactionIds) {
+        new Thread(() -> {
+            Log.d("ManualSync", "Deleting transactions with IDs: " + transactionIds.toString());
+            
+            int deletedCount = mysqliteopenhelper.deleteTransactionsByIds(transactionIds);
+            
+            // Recalculate balances after deletion
+            mysqliteopenhelper.recalculateUserBalancesAfterDeletion();
+            
+            requireActivity().runOnUiThread(() -> {
+                Log.d("ManualSync", "Successfully deleted " + deletedCount + " transactions");
+                Toast.makeText(getContext(), 
+                              "Deleted " + deletedCount + " transactions and recalculated balances", 
+                              Toast.LENGTH_LONG).show();
+                
+                // Refresh the transaction display
+                loadSQLiteTransactions();
+            });
+        }).start();
+    }
+
+    private void compareTransactions() {
+        new Thread(() -> {
+            try {
+                // Get blockchain transactions
+                if (!ethereumManager.isInitialized()) {
+                    ethereumManager.initializeSecurely();
+                }
+                
+                List<EthereumManager.BlockchainTransaction> blockchainTxs = ethereumManager.getAllTransactions();
+                
+                // Get SQLite transactions  
+                List<Mysqliteopenhelper.DetailedTransaction> sqliteTxs = mysqliteopenhelper.getAllDetailedTransactions();
+
+                requireActivity().runOnUiThread(() -> {
+                    Log.d("ManualSync", "=== TRANSACTION COMPARISON ===");
+                    Log.d("ManualSync", "Blockchain transactions: " + blockchainTxs.size());
+                    Log.d("ManualSync", "SQLite transactions: " + sqliteTxs.size());
+                    Log.d("ManualSync", "Difference: " + (sqliteTxs.size() - blockchainTxs.size()) + " extra in SQLite");
+                    
+                    Log.d("ManualSync", "\n--- BLOCKCHAIN TRANSACTIONS ---");
+                    for (EthereumManager.BlockchainTransaction tx : blockchainTxs) {
+                        Log.d("ManualSync", String.format("%s | %s -> %s | %s tokens | %s",
+                            tx.timestamp, tx.fromAddress, tx.toAddress, tx.amount, tx.type));
+                    }
+                    
+                    Log.d("ManualSync", "\n--- SQLITE TRANSACTIONS ---");
+                    for (Mysqliteopenhelper.DetailedTransaction tx : sqliteTxs) {
+                        Log.d("ManualSync", tx.toString());
+                    }
+                    
+                    Log.d("ManualSync", "=== END COMPARISON ===");
+                });
+
+            } catch (Exception e) {
+                Log.e("ManualSync", "Error comparing transactions: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void checkSQLiteTransactions() {
+        showAllSQLiteTransactions();
+        compareTransactions();
+    }
+
+    private void cleanupTransactions() {
+        // Example: Delete transactions with these IDs
+        List<Integer> problematicIds = Arrays.asList(1,2,3);
+        deleteSpecificTransactions(problematicIds);
+    }
+
 }

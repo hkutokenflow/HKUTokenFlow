@@ -9,7 +9,7 @@ public class BlockchainConfig {
     // =========================
 
     // ngrok url
-    public static final String BLOCKCHAIN_URL = "https://fb4e7ee02c2f.ngrok-free.app";
+    public static final String BLOCKCHAIN_URL = "https://ea8ce90f3f9f.ngrok-free.app";
     
     // =========================
     // SMART CONTRACT ADDRESSES

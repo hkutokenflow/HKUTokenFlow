@@ -572,7 +572,46 @@ public class EthereumManager {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
             Date blockchainDate = sdf.parse(timestamp);
 
-            Cursor cursor = mysqliteopenhelper.getStudentRewards(studentId);
+            String bestRewardName = null;
+            long smallestTimeDiff = Long.MAX_VALUE;
+
+            Cursor cursor = mysqliteopenhelper.getAllTrans();
+            if (cursor != null) { 
+                while (cursor.moveToNext()) {
+                    String sqliteTimestamp = cursor.getString(1);
+                    int sqliteSource = cursor.getInt(2);
+                    int sqliteDest = cursor.getInt(3);
+                    int sqliteAmount = cursor.getInt(4);
+                    int rewardId = cursor.getInt(5);
+                    String transactionType = cursor.getString(6);
+
+                    // Look for reward redemption transactions (type 'r')
+                    if (transactionType.equals("r") && sqliteSource == studentId && 
+                    sqliteDest == vendorId &&  sqliteAmount == amount) {
+                        try {
+                            Date sqliteDate = sdf.parse(sqliteTimestamp);
+                            long timeDiff = Math.abs(blockchainDate.getTime() - sqliteDate.getTime());
+                            
+                            // If timestamps are within 5 minutes AND closer than previous matches
+                            if (timeDiff < 300000 && timeDiff < smallestTimeDiff) {
+                                smallestTimeDiff = timeDiff;
+                                bestRewardName = mysqliteopenhelper.getRewardName(rewardId);
+                                Log.d("EthereumManager", "Found closer matching reward: " + bestRewardName + " (amount: " + amount + ")");
+                            }
+                        } catch (Exception e) {
+                            Log.w("EthereumManager", "Error parsing SQLite timestamp: " + sqliteTimestamp);
+                        }
+                    }
+                }
+                cursor.close();
+            }
+
+            if (bestRewardName != null) {
+                Log.d("EthereumManager", "Best matching reward: " + bestRewardName + " (smallest time diff: " + smallestTimeDiff + "ms)");
+                return bestRewardName;
+            }
+
+            /* Cursor cursor = mysqliteopenhelper.getStudentRewards(studentId);
             if (cursor != null) {
                 while (cursor.moveToNext()) {
                     int rewardId = cursor.getInt(2);  // get reward id from student_rewards record
@@ -591,7 +630,7 @@ public class EthereumManager {
                     }
                 }
                 cursor.close();
-            }
+            } */ 
             Log.w("EthereumManager", "No matching SQLite reward found for amount " + amount + " from student " + studentId + " to vendor " + vendorId + " at " + timestamp);
             return null;
         } catch (Exception e) {

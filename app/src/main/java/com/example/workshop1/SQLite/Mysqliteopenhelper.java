@@ -13,6 +13,8 @@ import androidx.annotation.Nullable;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Mysqliteopenhelper extends SQLiteOpenHelper {
 
@@ -821,6 +823,218 @@ public class Mysqliteopenhelper extends SQLiteOpenHelper {
             cursor.close();
         }
         return exists;
+    }
+
+
+    // ================================ manual sync with blockchain ================================
+    public List<DetailedTransaction> getAllDetailedTransactions() {
+        List<DetailedTransaction> transactions = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query("Transactions", null, null, null, null, null, "datetime DESC");
+
+        if (cursor != null && cursor.moveToFirst()) {
+            do {
+                int id = cursor.getInt(0);                    // _id
+            String datetime = cursor.getString(1);        // datetime
+            int source = cursor.getInt(2);                // source
+            int destination = cursor.getInt(3);           // destination
+            int amount = cursor.getInt(4);                // amount
+            int erid = cursor.getInt(5);                  // erid (event/reward id)
+            String ttype = cursor.getString(6);           // ttype (transaction type)
+            
+            // Get source user info
+            String sourceInfo = getUserInfo(source);
+            String sourceWallet = getUserWallet(source);
+            
+            // Get destination user info  
+            String destInfo = getUserInfo(destination);
+            String destWallet = getUserWallet(destination);
+
+            // Get event/reward name if applicable
+            String eridInfo = "";
+            if (erid > 0) {
+                if (ttype.equals("e")) {
+                    eridInfo = getEventName(erid);
+                } else if (ttype.equals("r")) {
+                    eridInfo = getRewardName(erid);
+                }
+            }
+            
+            transactions.add(new DetailedTransaction(
+                id, datetime, source, destination, amount, erid, ttype,
+                sourceInfo, destInfo, sourceWallet, destWallet, eridInfo
+            ));
+            } while (cursor.moveToNext());
+            cursor.close();
+        }
+    
+        Log.d("SQLiteManual", "Retrieved " + transactions.size() + " detailed transactions");
+        return transactions;
+    }
+
+    private String getUserInfo(int userId) {
+        SQLiteDatabase db = getReadableDatabase();
+        Cursor cursor = db.query("Users", new String[]{"username", "type"}, 
+                               "_id = ?", new String[]{String.valueOf(userId)}, 
+                               null, null, null);
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            String username = cursor.getString(0);
+            String type = cursor.getString(1);
+            cursor.close();
+            return username + " (" + type + ")";
+        }
+        
+        if (cursor != null) cursor.close();
+        return "Unknown User (ID: " + userId + ")";
+    }
+
+    public int deleteTransactionsByIds(List<Integer> transactionIds) {
+        if (transactionIds == null || transactionIds.isEmpty()) {
+            Log.w("SQLiteManual", "No transaction IDs provided for deletion");
+            return 0;
+        }
+
+        SQLiteDatabase db = getWritableDatabase();
+        int deletedCount = 0;
+        
+        Log.d("SQLiteManual", "Starting deletion of " + transactionIds.size() + " transactions");
+
+        for (Integer id : transactionIds) {
+            // Get transaction details before deletion for logging
+            Cursor cursor = db.query("Transactions", null, "_id = ?", 
+                                   new String[]{String.valueOf(id)}, null, null, null);
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                String datetime = cursor.getString(1);
+                int source = cursor.getInt(2);
+                int dest = cursor.getInt(3);
+                int amount = cursor.getInt(4);
+                String ttype = cursor.getString(6);
+                
+                Log.d("SQLiteManual", "Deleting transaction ID " + id + ": " + 
+                      datetime + ", " + source + " -> " + dest + ", " + amount + " tokens, type: " + ttype);
+            }
+            if (cursor != null) cursor.close();
+            
+            // Delete the transaction
+            int rowsDeleted = db.delete("Transactions", "_id = ?", new String[]{String.valueOf(id)});
+            if (rowsDeleted > 0) {
+                deletedCount++;
+                Log.d("SQLiteManual", "Successfully deleted transaction ID " + id);
+            } else {
+                Log.w("SQLiteManual", "Failed to delete transaction ID " + id + " (not found)");
+            }
+        }
+
+        Log.d("SQLiteManual", "Deletion complete. Deleted " + deletedCount + " out of " + 
+          transactionIds.size() + " requested transactions");
+
+        return deletedCount;
+    }
+
+    public void recalculateUserBalancesAfterDeletion() {
+        Log.d("SQLiteManual", "Recalculating user balances after manual deletion...");
+    
+        SQLiteDatabase db = getWritableDatabase();
+        
+        // Reset all user balances to 0
+        ContentValues resetValues = new ContentValues();
+        resetValues.put("balance", 0);
+        int usersReset = db.update("Users", resetValues, null, null);
+        Log.d("SQLiteManual", "Reset " + usersReset + " user balances to 0");
+        
+        // Recalculate from all remaining transactions
+        Cursor allTransactions = getAllTrans();
+        int transactionCount = 0;
+
+        if (allTransactions != null && allTransactions.moveToFirst()) {
+            do {
+                int source = allTransactions.getInt(2);      // source
+                int destination = allTransactions.getInt(3); // destination  
+                int amount = allTransactions.getInt(4);      // amount
+                
+                // Update source balance (subtract amount) - skip if source is admin (ID 1) for minting
+                if (source != 1) { 
+                    updateUserBalance(source, -amount);
+                }
+                
+                // Update destination balance (add amount)
+                updateUserBalance(destination, amount);
+                
+                transactionCount++;
+                
+            } while (allTransactions.moveToNext());
+            
+            allTransactions.close();
+        }
+
+        Log.d("SQLiteManual", "Recalculated balances from " + transactionCount + " remaining transactions");
+    }
+
+    private void updateUserBalance(int userId, int amountChange) {
+        SQLiteDatabase db = getWritableDatabase();
+        
+        // Get current balance
+        Cursor cursor = db.query("Users", new String[]{"balance"}, 
+                               "_id = ?", new String[]{String.valueOf(userId)}, 
+                               null, null, null);
+        
+        if (cursor != null && cursor.moveToFirst()) {
+            int currentBalance = cursor.getInt(0);
+            int newBalance = currentBalance + amountChange;
+            
+            ContentValues values = new ContentValues();
+            values.put("balance", newBalance);
+            db.update("Users", values, "_id = ?", new String[]{String.valueOf(userId)});
+            
+            Log.d("SQLiteManual", "Updated user " + userId + " balance: " + 
+                  currentBalance + " -> " + newBalance + " (change: " + amountChange + ")");
+        }
+        
+        if (cursor != null) cursor.close();
+    }
+
+    public static class DetailedTransaction {
+        public int id;
+        public String datetime;
+        public int sourceId;
+        public int destinationId; 
+        public int amount;
+        public int erid;
+        public String ttype;
+        public String sourceInfo;
+        public String destInfo;
+        public String sourceWallet;
+        public String destWallet;
+        public String eridInfo;
+
+        public DetailedTransaction(int id, String datetime, int sourceId, int destinationId, 
+                             int amount, int erid, String ttype, String sourceInfo, 
+                             String destInfo, String sourceWallet, String destWallet, 
+                             String eridInfo) {
+            this.id = id;
+            this.datetime = datetime;
+            this.sourceId = sourceId;
+            this.destinationId = destinationId;
+            this.amount = amount;
+            this.erid = erid;
+            this.ttype = ttype;
+            this.sourceInfo = sourceInfo;
+            this.destInfo = destInfo;
+            this.sourceWallet = sourceWallet;
+            this.destWallet = destWallet;
+            this.eridInfo = eridInfo;
+        }
+    
+        @Override
+        public String toString() {
+            String typeDesc = ttype.equals("e") ? "Event Check-in" : 
+                            ttype.equals("r") ? "Reward Redemption" : "Unknown";
+            
+            return String.format("ID: %d | %s | %s -> %s | %d tokens | %s | %s",
+                            id, datetime, sourceInfo, destInfo, amount, typeDesc, eridInfo);
+        }
     }
 
 }
